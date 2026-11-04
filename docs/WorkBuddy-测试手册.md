@@ -136,11 +136,18 @@ npm run lint
 
 保存配置后重启 WorkBuddy，或刷新 MCP Server。
 
-可用 PowerShell 做一次协议握手自检：
+可用 PowerShell 做一次协议握手自检。先进入项目根目录，或直接使用构建产物的绝对路径：
 
 ```powershell
-'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node packages\mcp\dist\main.js
+# 方式一：先进入项目根目录
+cd D:\项目\WorkWeave
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node .\packages\mcp\dist\main.js
+
+# 方式二：不切换目录，直接使用绝对路径
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
 ```
+
+> 如果报错 `Cannot find module 'C:\Users\<用户>\packages\mcp\dist\main.js'`，说明当前 PowerShell 目录不是项目根目录。相对路径 `packages\mcp\dist\main.js` 会按当前目录解析，因此必须 `cd D:\项目\WorkWeave`，或者使用绝对路径。
 
 预期返回类似：
 

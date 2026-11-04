@@ -172,6 +172,8 @@ $env:CLAUDE_CONFIG_DIR = "D:\claude-home"
 
 ### 安装与构建
 
+> 以下命令必须在项目根目录 `D:\项目\WorkWeave` 下执行。
+
 ```bash
 npm ci
 npm run build
@@ -179,6 +181,8 @@ npm run guard:no-model
 ```
 
 ### CLI 快速验证
+
+> 以下命令必须在项目根目录下执行；如果当前目录不在项目根目录，请把 `packages/cli/dist/main.js` 换成绝对路径。
 
 ```bash
 # 探测本机来源
@@ -197,8 +201,9 @@ node packages/cli/dist/main.js report \
 
 ### 启动 MCP Server
 
-```bash
-node packages/mcp/dist/main.js
+```powershell
+cd D:\项目\WorkWeave
+node .\packages\mcp\dist\main.js
 ```
 
 服务通过 stdin/stdout 使用逐行 JSON-RPC；日志只写 stderr，避免污染协议输出。
@@ -206,8 +211,15 @@ node packages/mcp/dist/main.js
 协议自检：
 
 ```powershell
-'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node packages\mcp\dist\main.js
+# 方式一：先进入项目根目录
+cd D:\项目\WorkWeave
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node .\packages\mcp\dist\main.js
+
+# 方式二：不切换目录，直接使用绝对路径
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
 ```
+
+> 如果出现 `Cannot find module 'C:\Users\<用户>\packages\mcp\dist\main.js'`，说明当前目录不在项目根目录，`node` 把相对路径解析到了用户目录。先执行 `cd D:\项目\WorkWeave`，或改用上面的绝对路径写法；同时确认已执行过 `npm run build`。
 
 ---
 
