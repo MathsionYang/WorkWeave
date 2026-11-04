@@ -188,7 +188,13 @@ npm run guard:no-model
 # 探测本机来源
 node packages/cli/dist/main.js probe --platform=win32 --home=%USERPROFILE%
 
-# 生成日报（Markdown）
+# 生成日报（HTML，默认）
+node packages/cli/dist/main.js report \
+  --day=2026-11-04 \
+  --out=D:\temp\workweave-daily.html \
+  --format=html
+
+# 如需 Markdown，显式指定
 node packages/cli/dist/main.js report \
   --day=2026-11-04 \
   --out=D:\temp\workweave-daily.md \

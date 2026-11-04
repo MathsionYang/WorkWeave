@@ -81,7 +81,7 @@ export const TOOL_CONTRACTS: readonly ToolContract[] = [
   {
     name: "ww_report_export",
     title: "导出报告",
-    description: "将已校验的事实层与叙述层原子导出为 Markdown / JSON / HTML",
+    description: "将已校验的事实层与叙述层原子导出为 HTML / JSON / Markdown；未指定 format 时默认 HTML",
     permission: "egress",
     hasBody: false,
     params: [

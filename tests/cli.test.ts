@@ -71,6 +71,7 @@ test("端到端报告命令产出八部分 Markdown 与数据版本", async () =
     homeDir: home,
     platform: "linux",
     env: {},
+    format: "markdown",
     now: new Date("2026-11-06T00:00:00.000Z")
   });
 

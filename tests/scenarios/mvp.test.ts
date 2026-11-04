@@ -120,6 +120,7 @@ test("MVP 端到端：三来源 + Claude 部分可用 + 无宿主事实模式", 
     homeDir: home,
     platform: "linux",
     env: {},
+    format: "markdown",
     now: new Date("2026-11-06T00:00:00.000Z")
   });
   const markdown = await readFile(out, "utf8");
@@ -140,6 +141,7 @@ test("MVP 端到端：三来源 + Claude 部分可用 + 无宿主事实模式", 
     homeDir: home,
     platform: "linux",
     env: {},
+    format: "markdown",
     now: new Date("2026-11-06T00:00:00.000Z")
   });
   assert.equal(second.dataVersion, first.dataVersion);

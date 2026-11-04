@@ -42,7 +42,7 @@ export async function runReportCommand(options: ReportCommandOptions): Promise<R
   const exported = await runtime.exportReport(
     options.day,
     options.out,
-    options.format ?? "markdown"
+    options.format ?? "html"
   );
 
   return {
@@ -54,5 +54,5 @@ export async function runReportCommand(options: ReportCommandOptions): Promise<R
 }
 
 export function defaultReportPath(day: string): string {
-  return join(process.cwd(), `workweave-report-${day}.md`);
+  return join(process.cwd(), `workweave-report-${day}.html`);
 }

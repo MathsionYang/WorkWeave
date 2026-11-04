@@ -465,7 +465,8 @@ sections = {
 ### T09 报告导出（HTML 主报告 + 图表）
 
 > WorkBuddy 调用 `ww_report_export` 时，**不指定 `format` 默认输出 HTML**。  
-> HTML 为自包含离线文件：内联 CSS + SVG，不依赖 CDN，可直接双击打开。
+> HTML 为自包含离线文件：内联 CSS + SVG，不依赖 CDN，可直接双击打开。  
+> 如果 WorkBuddy 直接在聊天里输出 Markdown，说明它**没有调用导出工具**；请明确说“调用 `ww_report_export`，out=...html”，而不是只说“生成总结”。
 
 #### HTML（默认，推荐）
 
@@ -514,7 +515,7 @@ dataVersion = 55cef6db7d37956c
 skippedSources = ["claude"]
 ```
 
-#### Markdown
+#### Markdown（可选，仅显式指定 format=markdown）
 
 ```text
 调用 ww_report_export，参数：
@@ -619,7 +620,7 @@ id = 1
 **执行**
 
 ```text
-调用 ww_report_export，参数 day=2026-11-04，format=markdown
+调用 ww_report_export，参数 day=2026-11-04，out=C:\Users\Administrator\Desktop\workweave-2026-11-04.html，format=html
 ```
 
 **检查点**

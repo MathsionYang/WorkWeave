@@ -17,8 +17,8 @@ function today(): string {
 }
 
 function parseFormat(value: string | undefined): "markdown" | "json" | "html" | "pdf" {
-  if (value === "json" || value === "html" || value === "pdf") return value;
-  return "markdown";
+  if (value === "markdown" || value === "json" || value === "pdf") return value;
+  return "html";
 }
 
 export async function runCli(argv: readonly string[]): Promise<number> {
