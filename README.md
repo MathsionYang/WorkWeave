@@ -211,9 +211,16 @@ node packages/mcp/dist/main.js
 
 ---
 
-## 在 WorkBuddy 中配置
+## 在 WorkBuddy 中配置（MCP Server JSON 详解）
 
-在 WorkBuddy 的 MCP Server 配置中加入（路径按实际项目位置修改）：
+WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面可能不同，但最终都需要提供四类信息：
+
+1. 服务名称
+2. 启动命令
+3. 参数数组
+4. 环境变量
+
+### 完整 JSON 示例
 
 ```json
 {
@@ -227,33 +234,170 @@ node packages/mcp/dist/main.js
         "WORKWEAVE_HOME": "C:\\Users\\Administrator",
         "WORKWEAVE_PLATFORM": "win32",
         "WORKWEAVE_HOST_ID": "workbuddy",
-        "WORKWEAVE_TOKEN": "local-token"
+        "WORKWEAVE_TOKEN": "local-token",
+        "WORKWEAVE_DB_PATH": "C:\\Users\\Administrator\\.workweave\\facts.db",
+        "WORKWEAVE_PDF_FONT": "C:\\Windows\\Fonts\\simhei.ttf",
+        "CODEX_HOME": "C:\\Users\\Administrator\\.codex",
+        "WORKBUDDY_HOME": "C:\\Users\\Administrator\\.workbuddy",
+        "DSH_HOME": "C:\\Users\\Administrator\\.dsh",
+        "CLAUDE_CONFIG_DIR": "C:\\Users\\Administrator\\.claude"
       }
     }
   }
 }
 ```
 
-可选环境变量：
+> `WORKWEAVE_DB_PATH` 与各来源变量都是可选项。第一次测试建议先使用“最小配置”，跑通后再按需添加。
 
-| 变量 | 说明 |
-|---|---|
-| `WORKWEAVE_HOME` | 用户主目录，织迹据此探测各来源 |
-| `WORKWEAVE_PLATFORM` | `win32` / `darwin` / `linux` |
-| `WORKWEAVE_HOST_ID` | 宿主标识，默认 `workbuddy` |
-| `WORKWEAVE_TOKEN` | 本地网关令牌，默认 `local-token` |
-| `WORKWEAVE_DB_PATH` | SQLite 文件路径；不设置则使用内存库，父目录需存在 |
-| `WORKWEAVE_PDF_FONT` | PDF 中文字体路径 |
+### 字段逐项说明
 
-如果 Codex / dsh / Claude 使用非默认路径，请在同一个 `env` 对象中追加：
+| 字段 | 必填 | 说明 |
+|---|---|---|
+| `mcpServers` | 是 | MCP 宿主约定的顶层对象；WorkBuddy 从这里读取服务列表 |
+| `workweave` | 是 | 服务标识，可自定义；建议保持 `workweave`，便于后续提问“织迹”时识别 |
+| `command` | 是 | 启动命令。推荐 `node`；若 WorkBuddy 的 PATH 找不到 node，改为绝对路径 |
+| `args` | 是 | 参数数组。第一项必须是 `packages/mcp/dist/main.js` 的**绝对路径** |
+| `env` | 否 | 传给织迹子进程的环境变量；建议把来源路径、令牌显式写在这里 |
+
+**`command` 的两种写法**
 
 ```json
-"CODEX_HOME": "D:\\codex-home",
-"DSH_HOME": "D:\\dsh-home",
-"CLAUDE_CONFIG_DIR": "D:\\claude-home"
+"command": "node"
 ```
 
-只保留你实际使用的来源即可，不需要全部配置。
+或者 Node 不在 PATH 时：
+
+```json
+"command": "C:\\Program Files\\nodejs\\node.exe"
+```
+
+**`args` 的写法**
+
+```json
+"args": ["D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"]
+```
+
+- 必须是绝对路径；不要写 `packages/mcp/dist/main.js`
+- 路径含空格不需要额外转义，因为 `args` 是数组
+- Windows 反斜杠在 JSON 中必须写成 `\\`
+
+### 路径转义规则
+
+| 写法 | 是否合法 | 说明 |
+|---|---|---|
+| `"D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"` | 合法 | 推荐 |
+| `"D:\项目\WorkWeave\packages\mcp\dist\main.js"` | 非法 | JSON 中 `\项` 不是合法转义 |
+| `"D:/项目/WorkWeave/packages/mcp/dist/main.js"` | 合法 | 正斜杠也可用，但团队内建议统一反斜杠转义 |
+
+### 最小配置
+
+如果 Node 在 PATH 中，且所有来源都在默认路径，使用以下配置即可：
+
+```json
+{
+  "mcpServers": {
+    "workweave": {
+      "command": "node",
+      "args": ["D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"]
+    }
+  }
+}
+```
+
+最小配置下的默认行为：
+
+- `WORKWEAVE_HOME`：当前用户主目录
+- `WORKWEAVE_PLATFORM`：自动识别
+- `WORKWEAVE_HOST_ID`：`workbuddy`
+- `WORKWEAVE_TOKEN`：`local-token`
+- SQLite：使用内存库
+- PDF：自动探测系统 CJK 字体
+
+### 环境变量详解
+
+| 变量 | 必填 | 默认值 | 说明 |
+|---|---|---|---|
+| `WORKWEAVE_HOME` | 否 | 用户主目录 | 织迹探测各来源的基准目录 |
+| `WORKWEAVE_PLATFORM` | 否 | 自动识别 | `win32` / `darwin` / `linux` |
+| `WORKWEAVE_HOST_ID` | 否 | `workbuddy` | 本地网关宿主标识 |
+| `WORKWEAVE_TOKEN` | 否 | `local-token` | 本地网关校验令牌；MCP 客户端无需单独传递 |
+| `WORKWEAVE_DB_PATH` | 否 | 内存库 | SQLite 文件路径；**父目录必须已存在** |
+| `WORKWEAVE_PDF_FONT` | 否 | 自动探测 | PDF 中文字体 TTF/TTC 路径 |
+| `CODEX_HOME` | 否 | `%USERPROFILE%\.codex` | Codex 记录根目录 |
+| `WORKBUDDY_HOME` | 否 | `%USERPROFILE%\.workbuddy` | WorkBuddy 记录根目录 |
+| `DSH_HOME` | 否 | `%USERPROFILE%\.dsh` | dsh 记录根目录 |
+| `CLAUDE_CONFIG_DIR` | 否 | `%USERPROFILE%\.claude` | Claude 记录根目录（当前仅探测） |
+
+如果启用 SQLite 持久化，先创建父目录：
+
+```powershell
+New-Item -ItemType Directory -Force C:\Users\Administrator\.workweave
+```
+
+### 自定义来源路径示例
+
+```json
+{
+  "mcpServers": {
+    "workweave": {
+      "command": "node",
+      "args": ["D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"],
+      "env": {
+        "WORKWEAVE_HOME": "C:\\Users\\Administrator",
+        "WORKWEAVE_PLATFORM": "win32",
+        "CODEX_HOME": "D:\\codex-home",
+        "WORKBUDDY_HOME": "D:\\workbuddy-home",
+        "DSH_HOME": "D:\\dsh-home"
+      }
+    }
+  }
+}
+```
+
+只配置你实际使用的来源。未配置的来源会使用默认路径；路径不存在时探测结果为 `not-found`，属于正常降级。
+
+### 在 WorkBuddy UI 中填写
+
+如果 WorkBuddy 使用图形化 MCP 配置界面，可按以下映射填写：
+
+| UI 字段 | 建议值 |
+|---|---|
+| 名称 / Name | `workweave` |
+| 类型 / Transport | `stdio` |
+| 命令 / Command | `node` |
+| 参数 / Args | `D:\项目\WorkWeave\packages\mcp\dist\main.js` |
+| 环境变量 / Env | 按需填写上表中的 `WORKWEAVE_*` 与来源变量 |
+
+如果 UI 只允许填写一条启动命令，可使用：
+
+```powershell
+node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
+```
+
+但不推荐这种方式，因为无法完整表达多个环境变量。
+
+### 配置后验证
+
+1. 重启 WorkBuddy，或在设置中刷新 MCP Server。
+2. 查看工具列表，应出现 **10 个**织迹工具。
+3. 调用 `ww_source_probe`，确认 `codex` / `workbuddy` / `dsh` 的状态。
+4. 如果看不到工具，依次检查：
+   - `args` 是否为 `main.js` 的绝对路径
+   - 是否执行过 `npm run build`
+   - `node --version` 是否为 24+
+   - JSON 是否通过校验（重点检查 `\\` 转义）
+
+### 常见配置错误
+
+| 现象 | 常见原因 | 处理 |
+|---|---|---|
+| MCP Server 启动失败 | `args` 路径错误或未构建 | `Test-Path ...\packages\mcp\dist\main.js`，并执行 `npm run build` |
+| JSON 无法保存 | Windows 路径未双写反斜杠 | 改为 `\\` |
+| 工具能列出但探测为空 | `WORKWEAVE_HOME` 指向错误 | 设置为真实用户主目录 |
+| 找不到 Codex 记录 | `CODEX_HOME` 未生效 | 写入 WorkBuddy 的 `env`，不要只设置 shell 变量 |
+| `E-PKG-001` 未知证据包 | 服务重启后旧 `packageId` 失效 | 重新调用 `ww_evidence_package` |
+| `E-RPT-001` | PDF 缺少中文字体 | 设置 `WORKWEAVE_PDF_FONT` |
+| 待确认项重启后丢失 | 未启用 SQLite 持久化 | 配置 `WORKWEAVE_DB_PATH` 并创建父目录 |
 
 配置完成后，在 WorkBuddy 中说：
 
