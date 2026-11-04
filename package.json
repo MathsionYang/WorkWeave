@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "织迹（WorkWeave）——本地 AI 工作痕迹采集、归类、证据追溯与报告管道",
+  "license": "MIT",
   "workspaces": [
     "packages/*"
   ],

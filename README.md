@@ -384,4 +384,6 @@ docs/         WorkBuddy 测试手册
 
 ## License
 
-暂未添加开源许可证。使用前请与仓库所有者确认授权范围。
+本项目采用 [MIT License](LICENSE)。
+
+Copyright (c) 2026 MathsionYang
