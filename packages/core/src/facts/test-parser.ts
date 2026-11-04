@@ -11,9 +11,9 @@ export interface TestParseInput {
   readonly evidenceIds?: readonly string[];
 }
 
-const TEST_COMMAND = /\b(jest|vitest|pytest|npm\s+(run\s+)?test|yarn\s+test|pnpm\s+test|go\s+test|cargo\s+test|mvn\s+test|gradle\s+test)\b/i;
-const FAILURE = /(\b\d+\s+failed\b|\bFAIL\b|assertionerror|traceback|E\s+assert|tests? failed|✕|×)/i;
-const PASS = /(\b\d+\s+passed\b|\bPASS\b|all tests? passed|✓|ok\b)/i;
+const TEST_COMMAND = /(jest|vitest|pytest|npm\s+(run\s+)?test|yarn\s+test|pnpm\s+test|go\s+test|cargo\s+test|mvn\s+test|gradle\s+test|测试|用例)/i;
+const FAILURE = /(\b\d+\s+failed\b|\bFAIL\b|assertionerror|traceback|E\s+assert|tests? failed|✕|×|测试失败|\d+\s*项.{0,10}失败)/i;
+const PASS = /(\b\d+\s+passed\b|\bPASS\b|all tests? passed|✓|ok\b|测试通过|全部通过|\d+\s*项.{0,10}通过)/i;
 const BLOCKED = /(blocked|skipped|无法执行|权限不足|EACCES|EPERM|cannot run)/i;
 
 function inferType(command: string, output: string): string {
@@ -29,8 +29,8 @@ function inferType(command: string, output: string): string {
 function firstFailureLine(output: string): string | undefined {
   const line = output
     .split(/\r?\n/)
-    .find((candidate) => FAILURE.test(candidate));
-  return line?.trim().slice(0, 300);
+    .find((candidate) => FAILURE.test(candidate) && !/^(Arguments|\{)/.test(candidate.trim()));
+  return line?.trim().slice(0, 160);
 }
 
 export function parseTestResult(input: TestParseInput): TestFact {

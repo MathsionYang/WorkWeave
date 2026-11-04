@@ -446,7 +446,7 @@ node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
 | `ww_evidence_package` | 生成九类结构化证据包 | `day`、`maxEntries?` |
 | `ww_skill_template_get` | 返回六部分总结模板 | 无 |
 | `ww_summary_validate` | 九维校验宿主生成结果 | `packageId`、`templateVersion`、`sections` |
-| `ww_report_export` | 导出 Markdown/JSON/HTML/PDF | `day`、`out`、`format?` |
+| `ww_report_export` | 导出 HTML（默认）/ JSON / Markdown / PDF | `day`、`out`、`format?` |
 | `ww_pending_manage` | 查询/确认/忽略待确认项 | `day`、`type?`、`action?`、`id?` |
 | `ww_evidence_resolve` | 按引用回查证据 | `packageId`、`evidenceId` |
 
@@ -456,14 +456,18 @@ node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
 
 ## 报告结构（八部分）
 
-1. **今日概览**：会话、项目、测试、采纳、提交、调研等指标
-2. **AI 协作与采纳**：四种采纳状态、分子/分母、无法判定率
-3. **今日调研**：主题、结论状态、原因与证据
-4. **按项目总结**：同一项目多来源合并，附来源分布
+HTML 是默认主报告，包含自包含离线图表；Markdown/JSON 为附属与权威格式。每份报告在指标之外还必须回答：我做了什么、结果如何、哪些需要继续优化。
+
+1. **今日概览**：一句话总结、会话/项目/测试/提交/采纳指标、下一步建议
+2. **AI 协作与采纳**：可确证/推断/未采纳/可判定样本/无法判定原因
+3. **今日调研**：主题、结论状态、原因与证据；系统提示与闲聊不算调研
+4. **按项目总结**：业务可读项目名、来源分布、今日任务、完成事项、问题、测试与质量、风险/阻塞/待优化、下一步建议
 5. **跨项目与未归属事项**
 6. **纯对话归类摘要**
 7. **待确认项**：低置信度、记录完整性缺口等
 8. **证据索引**：会话/消息/时间/来源引用
+
+报告会过滤系统提示、`environment_context`、工具脚手架等噪声；项目名优先取仓库根目录/`package.json`/结构化路径，避免时间戳与不可读目录名。
 
 报告完整性标记只有两种对外取值：
 
@@ -534,6 +538,8 @@ docs/         WorkBuddy 测试手册
 - 证据包保存在当前进程内存中，服务重启后 `packageId` 失效；待确认项可通过 `WORKWEAVE_DB_PATH` 持久化。
 - PDF 为纯文本排版，不追求完整 HTML/CSS 还原。
 - WorkBuddy 是否自动路由到工具取决于宿主模型；测试时建议明确写出工具名与参数。
+- 项目名优先取仓库根目录/`package.json`/结构化路径；无法识别时才退回目录名。
+- 事实模式能基于规则抽取任务、完成事项、问题、风险/阻塞与下一步建议，但不是完整语义总结；宿主叙述合并尚未自动完成。
 - MCP stdio 使用逐行 JSON-RPC；若宿主使用其他 framing，需要适配传输层。
 
 ---

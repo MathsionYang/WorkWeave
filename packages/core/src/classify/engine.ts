@@ -1,5 +1,7 @@
 import type { ActivityCategory, SessionId } from "../domain/types.js";
 import { asConfidence } from "../domain/types.js";
+import { isNoiseText } from "../facts/noise.js";
+import { deriveProjectName } from "./project-name.js";
 import {
   RULE_PRIORITY_RANK,
   type ClassificationRule,
@@ -39,7 +41,7 @@ function collectText(signal: ClassificationSignal): string {
   const parts: string[] = [];
   if (signal.title !== undefined) parts.push(signal.title);
   for (const message of signal.messages) {
-    if (message.text !== undefined) parts.push(message.text);
+    if (message.text !== undefined && !isNoiseText(message.text)) parts.push(message.text);
   }
   return parts.join("\n").toLowerCase();
 }
@@ -72,10 +74,9 @@ function projectFromStructured(signal: ClassificationSignal): { project: Project
     }
   }
   if (signal.workDir !== undefined) {
-    const segments = signal.workDir.split(/[\\/]/).filter(Boolean);
-    const name = segments.at(-1);
-    if (name !== undefined) {
-      return { project: name, reason: `workDir basename: ${name}`, confidence: 0.75 };
+    const derived = deriveProjectName(signal.workDir);
+    if (derived.name !== undefined) {
+      return { project: derived.name, reason: derived.reason, confidence: 0.8 };
     }
   }
   return { project: "unassigned", reason: "no structured project cue", confidence: 0.4 };

@@ -62,6 +62,19 @@ interface ProjectAccumulator {
   messages: number;
   bySource: Map<SourceTool, { sessions: number; messages: number }>;
   tests: TestFact[];
+  tasks: string[];
+  completions: string[];
+  problems: string[];
+  optimizations: string[];
+  risks: string[];
+  blockers: string[];
+  nextSteps: string[];
+}
+
+function pushUnique(target: string[], values: readonly string[] | undefined, limit = 10): void {
+  for (const value of values ?? []) {
+    if (!target.includes(value) && target.length < limit) target.push(value);
+  }
 }
 
 function mergeProjects(reports: readonly FactReport[]): readonly ProjectReportSection[] {
@@ -73,7 +86,14 @@ function mergeProjects(reports: readonly FactReport[]): readonly ProjectReportSe
         sessions: 0,
         messages: 0,
         bySource: new Map<SourceTool, { sessions: number; messages: number }>(),
-        tests: []
+        tests: [],
+        tasks: [],
+        completions: [],
+        problems: [],
+        optimizations: [],
+        risks: [],
+        blockers: [],
+        nextSteps: []
       };
       entry.sessions += project.distribution.totalSessions;
       entry.messages += project.distribution.totalMessages;
@@ -84,6 +104,13 @@ function mergeProjects(reports: readonly FactReport[]): readonly ProjectReportSe
         entry.bySource.set(share.source, source);
       }
       entry.tests.push(...project.tests);
+      pushUnique(entry.tasks, project.tasks);
+      pushUnique(entry.completions, project.completions);
+      pushUnique(entry.problems, project.problems);
+      pushUnique(entry.optimizations, project.optimizations);
+      pushUnique(entry.risks, project.risks);
+      pushUnique(entry.blockers, project.blockers);
+      pushUnique(entry.nextSteps, project.nextSteps);
       map.set(project.projectId, entry);
     }
   }
@@ -101,10 +128,14 @@ function mergeProjects(reports: readonly FactReport[]): readonly ProjectReportSe
       shares: sharesOf(entry.bySource, entry.messages),
       roundingDifference: false
     },
-    completions: [],
-    problems: [],
+    tasks: entry.tasks,
+    completions: entry.completions,
+    problems: entry.problems,
     tests: entry.tests,
-    optimizations: []
+    optimizations: entry.optimizations,
+    risks: entry.risks,
+    blockers: entry.blockers,
+    nextSteps: entry.nextSteps
   }));
 }
 

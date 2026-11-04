@@ -2,6 +2,7 @@ import type { ParsedSession } from "../ingest/types.js";
 import type { CompletenessDeclaration, CompletenessGap, EvidenceRef } from "../domain/models.js";
 import { asInstant, type PlainDate, type SourceTool } from "../domain/types.js";
 import { computeProjectDistribution } from "./distribution.js";
+import { extractReportInsights, type ReportInsights } from "./insights.js";
 import type {
   BuildFactReportInput,
   FactReport,
@@ -30,7 +31,7 @@ function buildCompleteness(input: BuildFactReportInput): ReportCompleteness {
   };
 }
 
-function buildOverview(input: BuildFactReportInput): OverviewMetrics {
+function buildOverview(input: BuildFactReportInput, insights: ReportInsights): OverviewMetrics {
   const projectIds = new Set(
     input.classifications
       .filter(
@@ -46,7 +47,10 @@ function buildOverview(input: BuildFactReportInput): OverviewMetrics {
     projects: projectIds.size,
     tests: input.tests.length,
     failures: input.tests.filter((test) => test.status === "failed").length,
-    optimizations: 0,
+    optimizations: [...insights.projects.values()].reduce(
+      (sum, project) => sum + project.optimizations.length,
+      0
+    ),
     aiAnswers: input.adoption.total,
     confirmed: input.adoption.confirmed,
     inferred: input.adoption.inferred,
@@ -60,7 +64,8 @@ function buildOverview(input: BuildFactReportInput): OverviewMetrics {
 
 function buildProjects(
   input: BuildFactReportInput,
-  range: { readonly from: PlainDate; readonly to: PlainDate }
+  range: { readonly from: PlainDate; readonly to: PlainDate },
+  insights: ReportInsights
 ): readonly ProjectReportSection[] {
   const projectIds = new Set(
     input.classifications
@@ -68,21 +73,32 @@ function buildProjects(
       .filter((projectId): projectId is string => projectId !== "cross-project" && projectId !== "unassigned")
   );
 
-  return [...projectIds].sort().map((projectId) => ({
-    projectId,
-    distribution: computeProjectDistribution({
+  return [...projectIds].sort().map((projectId) => {
+    const insight = insights.projects.get(projectId);
+    const projectTests = input.tests.filter((test) => {
+      const classification = input.classifications.find((item) => item.sessionId === test.sessionId);
+      return (classification?.projectId ?? test.projectId) === projectId;
+    });
+    return {
       projectId,
-      range,
-      sessions: input.sessions,
-      classifications: input.classifications,
-      ...(input.completenessBySource !== undefined ? { completenessBySource: input.completenessBySource } : {}),
-      ...(input.disabledSources !== undefined ? { disabledSources: input.disabledSources } : {})
-    }),
-    completions: [],
-    problems: [],
-    tests: input.tests.filter((test) => test.projectId === projectId),
-    optimizations: []
-  }));
+      distribution: computeProjectDistribution({
+        projectId,
+        range,
+        sessions: input.sessions,
+        classifications: input.classifications,
+        ...(input.completenessBySource !== undefined ? { completenessBySource: input.completenessBySource } : {}),
+        ...(input.disabledSources !== undefined ? { disabledSources: input.disabledSources } : {})
+      }),
+      tasks: insight?.tasks ?? [],
+      completions: insight?.completions ?? [],
+      problems: insight?.problems ?? [],
+      tests: projectTests,
+      optimizations: insight?.optimizations ?? [],
+      risks: insight?.risks ?? [],
+      blockers: insight?.blockers ?? [],
+      nextSteps: insight?.nextSteps ?? []
+    };
+  });
 }
 
 function buildPureConversation(input: BuildFactReportInput): readonly PureConversationSummary[] {
@@ -132,15 +148,25 @@ function buildPending(input: BuildFactReportInput): readonly string[] {
 
 export function buildFactReport(input: BuildFactReportInput): FactReport {
   const range = input.range ?? { from: input.day, to: input.day };
+  const insights = extractReportInsights({
+    sessions: input.sessions,
+    classifications: input.classifications,
+    tests: input.tests,
+    submissions: input.submissions,
+    research: input.research
+  });
+
   return {
     reportType: "daily",
     range,
     dataVersion: input.dataVersion,
     generatedAt: (input.now ?? new Date()).toISOString(),
-    overview: buildOverview(input),
+    summary: insights.summary,
+    nextSteps: insights.nextSteps,
+    overview: buildOverview(input, insights),
     adoption: input.adoption,
     research: input.research,
-    projects: buildProjects(input, range),
+    projects: buildProjects(input, range, insights),
     crossProject: input.classifications
       .filter(
         (classification) =>

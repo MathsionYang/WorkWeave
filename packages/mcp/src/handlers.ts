@@ -22,6 +22,7 @@ import {
   detectResearchFindings,
   exportReportAtomic,
   getSkillTemplate,
+  isNoiseText,
   pairInteractions,
   parseSubmissionFacts,
   parseTestResult,
@@ -139,8 +140,14 @@ export class WorkWeaveRuntime {
       if (collected.dataVersion.length > 0) versions.push(collected.dataVersion);
       for (const session of collected.sessions) {
         for (const message of session.messages) {
+          if (isNoiseText(message.text)) continue;
           const text = message.text ?? "";
-          if (/\b(jest|vitest|pytest|npm\s+test|go\s+test|cargo\s+test)\b/i.test(text)) {
+          if (/^(Arguments|\{)/.test(text.trim())) continue;
+          const hasTestCommand = /(jest|vitest|pytest|npm\s+test|go\s+test|cargo\s+test|mvn\s+test|gradle\s+test)/i.test(text);
+          const hasCountResult =
+            /\d+\s*(项|个|条)?[^。\n]{0,12}(通过|失败|failed|passed)/i.test(text) ||
+            /(Tests?:\s*\d+)/i.test(text);
+          if ((hasTestCommand || hasCountResult) && /(通过|失败|passed|failed|阻塞|未执行)/i.test(text)) {
             tests.push(
               parseTestResult({
                 sessionId: session.sessionId,
@@ -180,10 +187,12 @@ export class WorkWeaveRuntime {
       sourceTool: session.sourceTool,
       ...(session.workDir !== undefined ? { workDir: session.workDir } : {}),
       ...(session.title !== undefined ? { title: session.title } : {}),
-      messages: session.messages.map((message) => ({
-        role: message.role,
-        ...(message.text !== undefined ? { text: message.text } : {})
-      }))
+      messages: session.messages
+        .filter((message) => !isNoiseText(message.text))
+        .map((message) => ({
+          role: message.role,
+          ...(message.text !== undefined ? { text: message.text } : {})
+        }))
     }));
     const classifications = classifySessions(signals);
     this.classificationsByDay.set(day, [...classifications]);
@@ -350,7 +359,12 @@ export class WorkWeaveRuntime {
           sessionId: session.sessionId,
           ...(session.title !== undefined ? { title: session.title } : {}),
           day: asPlainDate(day),
-          messages: session.messages.map((message) => ({ ...(message.text !== undefined ? { text: message.text } : {}) }))
+          messages: session.messages
+            .filter((message) => !isNoiseText(message.text))
+            .map((message) => ({
+              role: message.role,
+              ...(message.text !== undefined ? { text: message.text } : {})
+            }))
         })
       )
     );

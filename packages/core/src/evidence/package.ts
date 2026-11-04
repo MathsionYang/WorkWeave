@@ -9,6 +9,7 @@ import type { ParsedSession } from "../ingest/types.js";
 import type { CompletenessDeclaration, EvidenceRef, TestFact } from "../domain/models.js";
 import type { PlainDate, SourceTool } from "../domain/types.js";
 import { WorkWeaveError } from "../domain/errors.js";
+import { isNoiseText } from "../facts/noise.js";
 import { redact, totalHits } from "../infra/sanitizer/index.js";
 
 export type EvidenceCategoryKey =
@@ -131,7 +132,7 @@ export function buildEvidencePackage(input: EvidencePackageInput): StructuredEvi
 
   const messages = input.sessions.flatMap<EvidenceItem>((session) =>
     session.messages
-      .filter((message) => (message.text ?? "").length > 0)
+      .filter((message) => (message.text ?? "").length > 0 && !isNoiseText(message.text))
       .map((message) => {
         const safe = redacted(message.text ?? "");
         hits += safe.hits;

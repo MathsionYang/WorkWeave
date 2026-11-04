@@ -30,10 +30,14 @@ export interface OverviewMetrics {
 export interface ProjectReportSection {
   readonly projectId: string;
   readonly distribution: SourceDistribution;
+  readonly tasks?: readonly string[];
   readonly completions: readonly string[];
   readonly problems: readonly string[];
   readonly tests: readonly TestFact[];
   readonly optimizations: readonly string[];
+  readonly risks?: readonly string[];
+  readonly blockers?: readonly string[];
+  readonly nextSteps?: readonly string[];
 }
 
 export interface PureConversationSummary {
@@ -54,6 +58,8 @@ export interface FactReport {
   readonly dataVersion: string;
   readonly generatedAt: string;
   readonly overview: OverviewMetrics;
+  readonly summary?: string;
+  readonly nextSteps?: readonly string[];
   readonly adoption: AdoptionStats;
   readonly research: readonly ResearchFinding[];
   readonly projects: readonly ProjectReportSection[];
