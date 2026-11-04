@@ -85,6 +85,81 @@ CLI 与 MCP 共用同一个 `WorkWeaveRuntime`，不允许出现第二套归类/
 人工手动指定 > 用户配置规则 > 来源环境变量 > 平台默认路径 > 其他内置候选
 ```
 
+### 各来源配置与验证
+
+> 织迹读取的是各工具**已经写入本地**的记录，不需要把织迹安装进 Codex / dsh / Claude。  
+> 只有 WorkBuddy 同时承担「MCP 宿主」与「数据源」两个角色。
+
+#### WorkBuddy：MCP 宿主 + 数据源
+
+- 作为 MCP 宿主：按下一节配置 `mcpServers.workweave`。
+- 作为数据源：默认读取 `%USERPROFILE%\.workbuddy`，真实会话位于 `projects/<slug>/<sessionId>.jsonl`（顶层 `sessions/` 可能为空）。
+- 自定义路径：在 WorkBuddy 的 MCP `env` 中设置 `WORKBUDDY_HOME`。
+- 验证：在 WorkBuddy 中调用 `ww_source_probe`，期望 `workbuddy` 行为 `discovered`。
+
+#### Codex：数据源
+
+- 默认路径：`%USERPROFILE%\.codex`
+- 自定义路径：设置 `CODEX_HOME`
+- 记录布局：
+  - 在线会话：`sessions/YYYY/MM/DD/rollout-<时间>-<uuid>.jsonl`
+  - 归档会话：`archived_sessions/*.jsonl.zst`（zstd）
+  - 会话索引：`session_index.jsonl`
+- PowerShell 临时设置：
+
+```powershell
+$env:CODEX_HOME = "D:\codex-home"
+```
+
+- 若要固定给 WorkBuddy 使用，把变量写进 MCP 配置的 `env`：
+
+```json
+"CODEX_HOME": "D:\\codex-home"
+```
+
+- 验证：`ww_source_probe` 的 `codex` 行为 `discovered`，且 `adoptedPath` 指向你设置的目录。
+- 说明：Codex 在当前项目中主要作为**数据源**。若你的 Codex 版本支持作为 MCP 宿主，可按该版本文档把同样的 `command` / `args` / `env` 填入其 MCP 配置；配置文件位置以 Codex 官方说明为准。
+
+#### dsh：数据源
+
+- 默认路径：`%USERPROFILE%\.dsh`
+- 自定义路径：设置 `DSH_HOME`
+- 记录布局：`sessions/<编码项目路径>/<sessionId>/session.v3.jsonl.zstd` 或 `session.v4.jsonl.zstd`
+- 织迹支持多帧 zstd 解压与 v3/v4 版本边界；高于 v4 会返回 `E-SRC-002`，不会猜测解析。
+- PowerShell 临时设置：
+
+```powershell
+$env:DSH_HOME = "D:\dsh-home"
+```
+
+- 验证：`ww_source_probe` 的 `dsh` 行为 `discovered`。
+
+#### Claude：探测 / 降级
+
+- 默认路径：`%USERPROFILE%\.claude`
+- 自定义路径：设置 `CLAUDE_CONFIG_DIR`
+- 记录布局：`projects/<编码项目路径>/<sessionId>.jsonl`
+- 当前状态：仅接入探测与“部分可用”提示，解析器需取得样本并通过取证门禁后启用。
+- 如果本机只有 Claude Code 记录、没有 Claude Desktop 普通聊天，探测结果为 `partially-available`，报告会标注“可能不完整”，这是预期行为。
+- 验证：
+
+```powershell
+$env:CLAUDE_CONFIG_DIR = "D:\claude-home"
+```
+
+#### 来源环境变量总表
+
+| 来源 | 环境变量 | 默认路径（Windows） |
+|---|---|---|
+| Codex | `CODEX_HOME` | `%USERPROFILE%\.codex` |
+| WorkBuddy | `WORKBUDDY_HOME` | `%USERPROFILE%\.workbuddy` |
+| dsh | `DSH_HOME` | `%USERPROFILE%\.dsh` |
+| Claude | `CLAUDE_CONFIG_DIR` | `%USERPROFILE%\.claude` |
+| 通用 | `WORKWEAVE_HOME` | 用户主目录；用于推导上述默认路径 |
+
+> `WORKWEAVE_HOME` 是默认路径的基准；来源专属环境变量的优先级更高。  
+> WorkBuddy 启动 MCP Server 时可能不继承你的 shell 环境，建议把需要的来源变量直接写进 MCP 配置的 `env`。
+
 ---
 
 ## 快速开始
@@ -169,6 +244,16 @@ node packages/mcp/dist/main.js
 | `WORKWEAVE_TOKEN` | 本地网关令牌，默认 `local-token` |
 | `WORKWEAVE_DB_PATH` | SQLite 文件路径；不设置则使用内存库，父目录需存在 |
 | `WORKWEAVE_PDF_FONT` | PDF 中文字体路径 |
+
+如果 Codex / dsh / Claude 使用非默认路径，请在同一个 `env` 对象中追加：
+
+```json
+"CODEX_HOME": "D:\\codex-home",
+"DSH_HOME": "D:\\dsh-home",
+"CLAUDE_CONFIG_DIR": "D:\\claude-home"
+```
+
+只保留你实际使用的来源即可，不需要全部配置。
 
 配置完成后，在 WorkBuddy 中说：
 
