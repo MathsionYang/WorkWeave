@@ -105,7 +105,7 @@ export class WorkWeaveRuntime {
     return results;
   }
 
-  async ingest(day: string): Promise<{
+  async ingest(day: string, requestedSources?: readonly SourceTool[]): Promise<{
     readonly day: string;
     readonly sessionCount: number;
     readonly messageCount: number;
@@ -121,7 +121,7 @@ export class WorkWeaveRuntime {
     const skippedSources: SourceTool[] = [];
     const versions: string[] = [];
 
-    for (const source of this.sources) {
+    for (const source of requestedSources ?? this.sources) {
       const adapter = this.adapters.get(source);
       const probe = this.probeBySource.get(source);
       if (adapter === undefined || probe?.adoptedPath === undefined) {
@@ -374,7 +374,16 @@ export function createRuntimeHandlers(runtime: WorkWeaveRuntime): ReadonlyMap<st
         return runtime.probe(typeof source === "string" ? [source as SourceTool] : undefined);
       }
     ],
-    ["ww_source_ingest", async (invocation) => runtime.ingest(requiredString(invocation, "day"))],
+    [
+      "ww_source_ingest",
+      async (invocation) => {
+        const source = invocation.params?.source;
+        return runtime.ingest(
+          requiredString(invocation, "day"),
+          typeof source === "string" ? [source as SourceTool] : undefined
+        );
+      }
+    ],
     ["ww_work_classify", async (invocation) => runtime.classify(requiredString(invocation, "day"))],
     [
       "ww_fact_extract",
