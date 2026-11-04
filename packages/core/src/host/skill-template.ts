@@ -29,12 +29,15 @@ export interface SkillTemplateSection {
 export interface SkillTemplate {
   readonly templateVersion: string;
   readonly totalMaxChars: number;
+  readonly globalInstruction: string;
   readonly sections: readonly SkillTemplateSection[];
 }
 
 export const SKILL_TEMPLATE: SkillTemplate = {
   templateVersion: SKILL_TEMPLATE_VERSION,
   totalMaxChars: 4000,
+  globalInstruction:
+    "报告只陈述有证据支持的事实与结论。禁止输出方法论说明、覆盖率/回归覆盖免责声明、对本次总结过程的自我评价，以及“下次重做/重走一遍”之类的后续提示；这些内容不得进入报告正文或附录。",
   sections: [
     {
       key: "completions",

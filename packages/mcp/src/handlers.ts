@@ -416,7 +416,7 @@ export function createRuntimeHandlers(runtime: WorkWeaveRuntime): ReadonlyMap<st
         return runtime.exportReport(
           requiredString(invocation, "day"),
           requiredString(invocation, "out"),
-          typeof format === "string" ? format : "markdown"
+          typeof format === "string" ? format : "html"
         );
       }
     ],

@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { homedir, platform as osPlatform } from "node:os";
+import { resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { ProbeService } from "@workweave/core";
 import type { Platform, SourceTool } from "@workweave/core";
 import { defaultReportPath, runReportCommand } from "./report-command.js";
@@ -71,7 +73,13 @@ export async function runCli(argv: readonly string[]): Promise<number> {
   return 0;
 }
 
-const isEntry = process.argv[1] !== undefined && import.meta.url.endsWith(process.argv[1].replaceAll("\\", "/"));
+const modulePath = resolve(fileURLToPath(import.meta.url));
+const entryPath = process.argv[1] === undefined ? "" : resolve(process.argv[1]);
+const isEntry =
+  entryPath.length > 0 &&
+  (process.platform === "win32"
+    ? modulePath.toLowerCase() === entryPath.toLowerCase()
+    : modulePath === entryPath);
 if (isEntry) {
   runCli(process.argv.slice(2)).then((code) => {
     process.exitCode = code;

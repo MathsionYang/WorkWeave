@@ -182,3 +182,30 @@ test("V-29 待总结模式只生成证据包，不产生报告文件", async () 
   assert.ok(pkg.packageId.length > 0);
   assert.equal(pkg.categories.length, 9);
 });
+test("V-34 方法论/覆盖率免责声明不得进入报告", () => {
+  const result = validateSubmission(
+    submission({
+      completions: {
+        text: "这些动作都没有固化为可复跑用例，因此不代表回归覆盖 —— 下次做同类复刻仍要重走一遍。",
+        evidenceIds: ["session:codex:s1"]
+      }
+    }),
+    buildPackage()
+  );
+  assert.equal(result.passed, false);
+  assert.ok(result.violations.some((violation) => violation.code === "meta-commentary"));
+});
+
+test("V-35 生成链路说明不得进入报告", () => {
+  const result = validateSubmission(
+    submission({
+      problems: {
+        text: "生成链路说明：本报告由探测、采集、归类、证据包四步生成。",
+        evidenceIds: []
+      }
+    }),
+    buildPackage()
+  );
+  assert.equal(result.passed, false);
+  assert.ok(result.violations.some((violation) => violation.code === "meta-commentary"));
+});

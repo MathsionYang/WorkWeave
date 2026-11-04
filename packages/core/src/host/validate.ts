@@ -35,7 +35,8 @@ export type ViolationCode =
   | "forbidden-phrase"
   | "illegal-number"
   | "source-split"
-  | "reference-inconsistent";
+  | "reference-inconsistent"
+  | "meta-commentary";
 
 export interface ValidationViolation {
   readonly code: ViolationCode;
@@ -62,6 +63,8 @@ const FORBIDDEN_PHRASES: readonly RegExp[] = [
 const SOURCE_SPLIT = /[（(](codex|claude|workbuddy|dsh)[）)]/i;
 const SOURCE_SPLIT_SECTION = /项目[^。\n]*[（(](codex|claude|workbuddy|dsh)[）)]/i;
 const PASS_CLAIM = /(通过|passed|成功|全部通过)/i;
+const META_COMMENTARY =
+  /(可复跑用例|复跑用例|回归覆盖|不代表回归|不代表[^。\n]*覆盖|未固化(为)?[^。\n]*用例|没有固化(为)?[^。\n]*用例|下次[^。\n]*重走|还需重走|重走一遍|无法保证回归|未形成回归|不在本次覆盖|覆盖不到|生成链路|链路说明|生成过程|采集流程|数据处理流程|报告生成说明)/i;
 
 function totalSessions(pkg: StructuredEvidencePackage): number {
   return pkg.categories.find((category) => category.key === "sessions")?.items.length ?? 0;
@@ -166,6 +169,14 @@ export function validateSubmission(
           message: `section ${spec.title} contains forbidden phrase ${pattern}`
         });
       }
+    }
+
+    if (META_COMMENTARY.test(section.text)) {
+      violations.push({
+        code: "meta-commentary",
+        section: spec.key,
+        message: `section ${spec.title} contains methodology or coverage commentary`
+      });
     }
 
     for (const match of section.text.matchAll(/(\d+(?:\.\d+)?)%/g)) {

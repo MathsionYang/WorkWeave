@@ -462,7 +462,57 @@ sections = {
 
 ---
 
-### T09 报告导出
+### T09 报告导出（HTML 主报告 + 图表）
+
+> WorkBuddy 调用 `ww_report_export` 时，**不指定 `format` 默认输出 HTML**。  
+> HTML 为自包含离线文件：内联 CSS + SVG，不依赖 CDN，可直接双击打开。
+
+#### HTML（默认，推荐）
+
+```text
+调用 ww_report_export，参数：
+day = 2026-11-04
+out = C:\Users\Administrator\Desktop\workweave-daily.html
+format = html
+```
+
+`format` 也可省略，效果相同。
+
+**预期结果**
+
+```json
+{ "path": "C:\\Users\\Administrator\\Desktop\\workweave-daily.html", "dataVersion": "..." }
+```
+
+打开 HTML 后逐项检查：
+
+- 页面顶部有「图表概览」
+- 来源分布饼图包含 `codex` / `workbuddy` / `dsh`（有数据的来源）
+- 项目会话数条形图
+- 测试四态图（无测试时显示「未检测到数据」）
+- AI 采纳状态图（无可判定信号时显示「未检测到可判定采纳信号」）
+- 调研结论图
+- 图表下方仍有八部分正文：
+  1. 今日概览
+  2. AI 协作与采纳
+  3. 今日调研
+  4. 按项目总结
+  5. 跨项目与未归属事项
+  6. 纯对话归类摘要
+  7. 待确认项
+  8. 证据索引
+- 空类别显示「未检测到数据」，不能出现全 0 饼图 / 零高度柱状图
+- 页面源码中不应出现外部 `http://` / `https://` / CDN 依赖
+
+**实测基线（2026-11-04）**
+
+```text
+sessionCount = 8
+codex = 3 个会话
+workbuddy = 5 个会话
+dataVersion = 55cef6db7d37956c
+skippedSources = ["claude"]
+```
 
 #### Markdown
 
@@ -473,29 +523,18 @@ out = C:\Users\Administrator\Desktop\workweave-daily.md
 format = markdown
 ```
 
-**预期结果**
+检查八部分结构；Markdown 为附属格式，不包含图表。
 
-```json
-{ "path": "C:\\Users\\Administrator\\Desktop\\workweave-daily.md", "dataVersion": "..." }
+#### JSON
+
+```text
+调用 ww_report_export，参数：
+day = 2026-11-04
+out = C:\Users\Administrator\Desktop\workweave-daily.json
+format = json
 ```
 
-打开文件，应包含八部分：
-
-1. 今日概览
-2. AI 协作与采纳
-3. 今日调研
-4. 按项目总结
-5. 跨项目与未归属事项
-6. 纯对话归类摘要
-7. 待确认项
-8. 证据索引
-
-#### JSON / HTML
-
-把 `format` 改为 `json` 或 `html`，检查：
-
-- JSON 可由 JSON 解析器解析
-- HTML 有 `<h2>1. 今日概览</h2>` 等结构
+检查文件可由 JSON 解析器解析，字段与 HTML 使用同一 `dataVersion`。
 
 #### PDF
 
@@ -644,7 +683,7 @@ id = 1
 | 测试事实 | 状态属于 `passed/failed/blocked/not-run` |
 | 证据包 | 九类齐全；空类别有 `present=false` 与 `reason` |
 | 校验 | 合法提交 `passed=true`；缺章节/假证据被拒绝 |
-| 导出 | Markdown 八部分；JSON 可解析；HTML 有结构；PDF 为 `%PDF-` |
+| 导出 | HTML 默认且含五类图表、自包含离线；Markdown 八部分；JSON 可解析；PDF 为 `%PDF-` |
 | 回查 | 存在引用可回查；不存在返回 `E-PKG-002` |
 | 待确认 | query/confirm/ignore 状态正确 |
 | 安全 | 不产生模型 API Key 调用；不提交凭据文件 |
@@ -731,4 +770,6 @@ New-Item -ItemType Directory -Force C:\Users\Administrator\.workweave
 - 证据包默认保存在内存中，服务重启后失效；`WORKWEAVE_DB_PATH` 只持久化待确认项等 SQLite 数据。
 - PDF 为纯文本排版，不追求完整 HTML/CSS 还原。
 - WorkBuddy 是否自动路由到工具取决于其模型；建议在测试时明确写出工具名与参数。
+- 项目名当前按工作目录 basename 归类，可能出现 `SATBin64`、时间戳或副本名；这是归类命名质量问题，不是 Codex/WorkBuddy 记录未采集。
+- 事实模式导出的正文以事实条目为主；“今日完成/解决问题”的叙述性内容需要宿主模型生成并通过九维校验后合并，当前导出工具尚未自动合并宿主叙述。
 - 报告导出使用调用方提供的本地路径，请在测试环境使用独立目录，避免覆盖真实文件。
