@@ -1,0 +1,35 @@
+{
+  "name": "workweave",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "织迹（WorkWeave）——本地 AI 工作痕迹采集、归类、证据追溯与报告管道",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "eslint .",
+    "test": "node --test \"dist-tests/**/*.test.js\"",
+    "test:scenarios": "node --test \"dist-tests/scenarios/**/*.test.js\"",
+    "test:repo": "node --test \"dist-tests/repo/**/*.test.js\"",
+    "guard:no-model": "node scripts/guard-no-model.mjs",
+    "bench": "node scripts/bench.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@types/node": "^24.10.0",
+    "@types/pdfkit": "^0.17.7",
+    "eslint": "^9.39.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.46.0"
+  },
+  "dependencies": {
+    "pdfkit": "^0.20.2"
+  }
+}
