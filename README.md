@@ -1,10 +1,48 @@
 # 织迹（WorkWeave）
 
+简体中文 | [English](README.en.md)
+
 [![CI](https://github.com/MathsionYang/WorkWeave/actions/workflows/ci.yml/badge.svg)](https://github.com/MathsionYang/WorkWeave/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/node-%3E%3D24-brightgreen.svg)](https://nodejs.org/)
+[![MCP](https://img.shields.io/badge/MCP-1.0.0-blue.svg)](packages/mcp)
 
 织迹是一个**本地优先的多源 AI 工作痕迹管道**：采集 Codex、Claude、WorkBuddy、dsh 的本地会话记录，完成标准化、去重、项目与活动类别归类、测试与提交事实抽取，输出带证据引用的每日/每周工作总结。
 
 织迹**不内置、不代理大模型**，也不需要用户配置任何 API Key。它作为 **MCP Server / 插件工具** 暴露给 WorkBuddy 等宿主，由宿主自带模型完成语义总结；织迹负责数据管道、证据追溯与报告落盘。
+
+### 我该从哪里开始
+
+| 我想做的事 | 直接看 |
+|---|---|
+| 装好并生成第一份日报 | [快速开始](#快速开始) |
+| 把织迹接入 WorkBuddy | [WorkBuddy 配置详解](#workbuddy-配置详解) |
+| 确认本机 Codex / dsh / Claude 记录在哪 | [支持的数据来源](#支持的数据来源) |
+| 查看 10 个 MCP 工具与参数 | [MCP 工具](#mcp-工具) |
+| 报告长什么样、包含哪些部分 | [报告结构](#报告结构) |
+| 配置报错、工具不出现 | [常见配置错误](#常见配置错误) |
+
+---
+
+## 目录
+
+- [为什么需要织迹](#为什么需要织迹)
+- [核心能力](#核心能力)
+- [架构](#架构)
+- [支持的数据来源](#支持的数据来源)
+- [快速开始](#快速开始)
+- [WorkBuddy 配置详解](#workbuddy-配置详解)
+- [MCP 工具](#mcp-工具)
+- [报告结构](#报告结构)
+- [安全与隐私](#安全与隐私)
+- [项目结构](#项目结构)
+- [常用脚本](#常用脚本)
+- [测试与 CI](#测试与-ci)
+- [已知限制](#已知限制)
+- [文档](#文档)
+- [贡献者](#贡献者)
+- [社区与反馈](#社区与反馈)
+- [License](#license)
 
 ---
 
@@ -16,6 +54,8 @@
 - **官方看板只有活动量**：会话数、token 成本、采纳率不等于“实际做了什么、质量如何、哪里卡住了”。
 
 织迹把这些原始痕迹转成**按项目归类、带证据、可复核**的工作摘要。
+
+与同类工具的关键差异：**同一项目下 Codex、WorkBuddy、dsh 的会话会合并为一个项目章节**，并标注来源分布，而不是按工具各写一份总结。
 
 ---
 
@@ -87,12 +127,12 @@ CLI 与 MCP 共用同一个 `WorkWeaveRuntime`，不允许出现第二套归类/
 
 ### 各来源配置与验证
 
-> 织迹读取的是各工具**已经写入本地**的记录，不需要把织迹安装进 Codex / dsh / Claude。  
+> 织迹读取的是各工具**已经写入本地**的记录，不需要把织迹安装进 Codex / dsh / Claude。
 > 只有 WorkBuddy 同时承担「MCP 宿主」与「数据源」两个角色。
 
 #### WorkBuddy：MCP 宿主 + 数据源
 
-- 作为 MCP 宿主：按下一节配置 `mcpServers.workweave`。
+- 作为 MCP 宿主：按 [WorkBuddy 配置详解](#workbuddy-配置详解) 配置 `mcpServers.workweave`。
 - 作为数据源：默认读取 `%USERPROFILE%\.workbuddy`，真实会话位于 `projects/<slug>/<sessionId>.jsonl`（顶层 `sessions/` 可能为空）。
 - 自定义路径：在 WorkBuddy 的 MCP `env` 中设置 `WORKBUDDY_HOME`。
 - 验证：在 WorkBuddy 中调用 `ww_source_probe`，期望 `workbuddy` 行为 `discovered`。
@@ -141,7 +181,7 @@ $env:DSH_HOME = "D:\dsh-home"
 - 记录布局：`projects/<编码项目路径>/<sessionId>.jsonl`
 - 当前状态：仅接入探测与“部分可用”提示，解析器需取得样本并通过取证门禁后启用。
 - 如果本机只有 Claude Code 记录、没有 Claude Desktop 普通聊天，探测结果为 `partially-available`，报告会标注“可能不完整”，这是预期行为。
-- 验证：
+- PowerShell 临时设置：
 
 ```powershell
 $env:CLAUDE_CONFIG_DIR = "D:\claude-home"
@@ -157,7 +197,7 @@ $env:CLAUDE_CONFIG_DIR = "D:\claude-home"
 | Claude | `CLAUDE_CONFIG_DIR` | `%USERPROFILE%\.claude` |
 | 通用 | `WORKWEAVE_HOME` | 用户主目录；用于推导上述默认路径 |
 
-> `WORKWEAVE_HOME` 是默认路径的基准；来源专属环境变量的优先级更高。  
+> `WORKWEAVE_HOME` 是默认路径的基准；来源专属环境变量的优先级更高。
 > WorkBuddy 启动 MCP Server 时可能不继承你的 shell 环境，建议把需要的来源变量直接写进 MCP 配置的 `env`。
 
 ---
@@ -172,9 +212,11 @@ $env:CLAUDE_CONFIG_DIR = "D:\claude-home"
 
 ### 安装与构建
 
-> 以下命令必须在项目根目录 `D:\项目\WorkWeave` 下执行。
+> 将 `$ROOT` 改为你的仓库根目录后逐行执行。
 
-```bash
+```powershell
+$ROOT = "D:\path\to\WorkWeave"
+cd $ROOT
 npm ci
 npm run build
 npm run guard:no-model
@@ -182,34 +224,34 @@ npm run guard:no-model
 
 ### CLI 快速验证
 
-> 以下命令必须在项目根目录下执行；如果当前目录不在项目根目录，请把 `packages/cli/dist/main.js` 换成绝对路径。
+```powershell
+$ROOT = "D:\path\to\WorkWeave"
 
-```bash
 # 探测本机来源
-node packages/cli/dist/main.js probe --platform=win32 --home=%USERPROFILE%
+node "$ROOT\packages\cli\dist\main.js" probe --platform=win32 --home=$env:USERPROFILE
 
 # 生成日报（HTML，默认）
-node packages/cli/dist/main.js report \
-  --day=2026-11-04 \
-  --out=D:\temp\workweave-daily.html \
+node "$ROOT\packages\cli\dist\main.js" report `
+  --day=2026-11-04 `
+  --out=D:\temp\workweave-daily.html `
   --format=html
 
 # 如需 Markdown，显式指定
-node packages/cli/dist/main.js report \
-  --day=2026-11-04 \
-  --out=D:\temp\workweave-daily.md \
+node "$ROOT\packages\cli\dist\main.js" report `
+  --day=2026-11-04 `
+  --out=D:\temp\workweave-daily.md `
   --format=markdown
 ```
 
-支持的导出格式：`markdown` / `json` / `html` / `pdf`。
+支持的导出格式：`markdown` / `json` / `html` / `pdf`。不指定 `--format` 时默认输出 HTML。
 
 > PDF 需要中文字体。Windows 默认使用 `C:\Windows\Fonts\simhei.ttf`；Linux/macOS 可通过 `WORKWEAVE_PDF_FONT` 指定 TTF/TTC 字体路径。字体缺失且内容含中文时返回 `E-RPT-001`，不会生成乱码 PDF。
 
 ### 启动 MCP Server
 
 ```powershell
-cd D:\项目\WorkWeave
-node .\packages\mcp\dist\main.js
+$ROOT = "D:\path\to\WorkWeave"
+node "$ROOT\packages\mcp\dist\main.js"
 ```
 
 服务通过 stdin/stdout 使用逐行 JSON-RPC；日志只写 stderr，避免污染协议输出。
@@ -217,19 +259,15 @@ node .\packages\mcp\dist\main.js
 协议自检：
 
 ```powershell
-# 方式一：先进入项目根目录
-cd D:\项目\WorkWeave
-'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node .\packages\mcp\dist\main.js
-
-# 方式二：不切换目录，直接使用绝对路径
-'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
+$ROOT = "D:\path\to\WorkWeave"
+'{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26"}}' | node "$ROOT\packages\mcp\dist\main.js"
 ```
 
-> 如果出现 `Cannot find module 'C:\Users\<用户>\packages\mcp\dist\main.js'`，说明当前目录不在项目根目录，`node` 把相对路径解析到了用户目录。先执行 `cd D:\项目\WorkWeave`，或改用上面的绝对路径写法；同时确认已执行过 `npm run build`。
+> 如果出现 `Cannot find module 'C:\Users\<用户>\packages\mcp\dist\main.js'`，说明当前目录不在项目根目录，`node` 把相对路径解析到了用户目录。改用上面的绝对路径写法，并确认已执行过 `npm run build`。
 
 ---
 
-## 在 WorkBuddy 中配置（MCP Server JSON 详解）
+## WorkBuddy 配置详解
 
 WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面可能不同，但最终都需要提供四类信息：
 
@@ -246,26 +284,26 @@ WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面
     "workweave": {
       "command": "node",
       "args": [
-        "D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"
+        "D:\\path\\to\\WorkWeave\\packages\\mcp\\dist\\main.js"
       ],
       "env": {
-        "WORKWEAVE_HOME": "C:\\Users\\Administrator",
+        "WORKWEAVE_HOME": "C:\\Users\\<YourName>",
         "WORKWEAVE_PLATFORM": "win32",
         "WORKWEAVE_HOST_ID": "workbuddy",
         "WORKWEAVE_TOKEN": "local-token",
-        "WORKWEAVE_DB_PATH": "C:\\Users\\Administrator\\.workweave\\facts.db",
+        "WORKWEAVE_DB_PATH": "C:\\Users\\<YourName>\\.workweave\\facts.db",
         "WORKWEAVE_PDF_FONT": "C:\\Windows\\Fonts\\simhei.ttf",
-        "CODEX_HOME": "C:\\Users\\Administrator\\.codex",
-        "WORKBUDDY_HOME": "C:\\Users\\Administrator\\.workbuddy",
-        "DSH_HOME": "C:\\Users\\Administrator\\.dsh",
-        "CLAUDE_CONFIG_DIR": "C:\\Users\\Administrator\\.claude"
+        "CODEX_HOME": "C:\\Users\\<YourName>\\.codex",
+        "WORKBUDDY_HOME": "C:\\Users\\<YourName>\\.workbuddy",
+        "DSH_HOME": "C:\\Users\\<YourName>\\.dsh",
+        "CLAUDE_CONFIG_DIR": "C:\\Users\\<YourName>\\.claude"
       }
     }
   }
 }
 ```
 
-> `WORKWEAVE_DB_PATH` 与各来源变量都是可选项。第一次测试建议先使用“最小配置”，跑通后再按需添加。
+> 把 `<YourName>` 替换为你的 Windows 用户名。`WORKWEAVE_DB_PATH` 与各来源变量都是可选项。第一次测试建议先使用“最小配置”，跑通后再按需添加。
 
 ### 字段逐项说明
 
@@ -292,7 +330,7 @@ WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面
 **`args` 的写法**
 
 ```json
-"args": ["D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"]
+"args": ["D:\\path\\to\\WorkWeave\\packages\\mcp\\dist\\main.js"]
 ```
 
 - 必须是绝对路径；不要写 `packages/mcp/dist/main.js`
@@ -303,9 +341,9 @@ WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面
 
 | 写法 | 是否合法 | 说明 |
 |---|---|---|
-| `"D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"` | 合法 | 推荐 |
-| `"D:\项目\WorkWeave\packages\mcp\dist\main.js"` | 非法 | JSON 中 `\项` 不是合法转义 |
-| `"D:/项目/WorkWeave/packages/mcp/dist/main.js"` | 合法 | 正斜杠也可用，但团队内建议统一反斜杠转义 |
+| `"D:\\path\\to\\WorkWeave\\packages\\mcp\\dist\\main.js"` | 合法 | 推荐 |
+| `"D:\path\to\WorkWeave\packages\mcp\dist\main.js"` | 非法 | JSON 中 `\p`、`\t` 不是合法转义 |
+| `"D:/path/to/WorkWeave/packages/mcp/dist/main.js"` | 合法 | 正斜杠也可用，但团队内建议统一反斜杠转义 |
 
 ### 最小配置
 
@@ -316,7 +354,7 @@ WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面
   "mcpServers": {
     "workweave": {
       "command": "node",
-      "args": ["D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"]
+      "args": ["D:\\path\\to\\WorkWeave\\packages\\mcp\\dist\\main.js"]
     }
   }
 }
@@ -349,7 +387,7 @@ WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面
 如果启用 SQLite 持久化，先创建父目录：
 
 ```powershell
-New-Item -ItemType Directory -Force C:\Users\Administrator\.workweave
+New-Item -ItemType Directory -Force "C:\Users\<YourName>\.workweave"
 ```
 
 ### 自定义来源路径示例
@@ -359,9 +397,9 @@ New-Item -ItemType Directory -Force C:\Users\Administrator\.workweave
   "mcpServers": {
     "workweave": {
       "command": "node",
-      "args": ["D:\\项目\\WorkWeave\\packages\\mcp\\dist\\main.js"],
+      "args": ["D:\\path\\to\\WorkWeave\\packages\\mcp\\dist\\main.js"],
       "env": {
-        "WORKWEAVE_HOME": "C:\\Users\\Administrator",
+        "WORKWEAVE_HOME": "C:\\Users\\<YourName>",
         "WORKWEAVE_PLATFORM": "win32",
         "CODEX_HOME": "D:\\codex-home",
         "WORKBUDDY_HOME": "D:\\workbuddy-home",
@@ -383,13 +421,13 @@ New-Item -ItemType Directory -Force C:\Users\Administrator\.workweave
 | 名称 / Name | `workweave` |
 | 类型 / Transport | `stdio` |
 | 命令 / Command | `node` |
-| 参数 / Args | `D:\项目\WorkWeave\packages\mcp\dist\main.js` |
+| 参数 / Args | `D:\path\to\WorkWeave\packages\mcp\dist\main.js` |
 | 环境变量 / Env | 按需填写上表中的 `WORKWEAVE_*` 与来源变量 |
 
 如果 UI 只允许填写一条启动命令，可使用：
 
 ```powershell
-node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
+node "D:\path\to\WorkWeave\packages\mcp\dist\main.js"
 ```
 
 但不推荐这种方式，因为无法完整表达多个环境变量。
@@ -454,14 +492,17 @@ node "D:\项目\WorkWeave\packages\mcp\dist\main.js"
 
 ---
 
-## 报告结构（八部分）
+## 报告结构
 
 HTML 是默认主报告，包含自包含离线图表；Markdown/JSON 为附属与权威格式。每份报告在指标之外还必须回答：我做了什么、结果如何、哪些需要继续优化。
 
 1. **今日概览**：一句话总结、会话/项目/测试/提交/采纳指标、下一步建议
 2. **AI 协作与采纳**：可确证/推断/未采纳/可判定样本/无法判定原因
 3. **今日调研**：主题、结论状态、原因与证据；系统提示与闲聊不算调研
-4. **按项目总结**：业务可读项目名、来源分布、今日任务、完成事项、问题、测试与质量、风险/阻塞/待优化、下一步建议
+4. **按项目总结**：
+   - 业务可读项目名、来源分布
+   - 今日任务、完成事项、问题、测试与质量
+   - 风险/阻塞/待优化、下一步建议
 5. **跨项目与未归属事项**
 6. **纯对话归类摘要**
 7. **待确认项**：低置信度、记录完整性缺口等
@@ -547,12 +588,25 @@ docs/         WorkBuddy 测试手册
 ## 文档
 
 - [WorkBuddy 测试手册](docs/WorkBuddy-测试手册.md)
+- [English README](README.en.md)
+
+---
+
+## 贡献者
+
+| 贡献者 | 角色 |
+|---|---|
+| [MathsionYang](https://github.com/MathsionYang) | 项目作者、产品与规格主导 |
+| CodeArts Agent | 实现、测试与文档协作 |
+
+欢迎通过 Issue 与 Discord 反馈问题、提交建议。提交代码时请附上对应的验证结果。
 
 ---
 
 ## 社区与反馈
 
 - Discord 社区：[加入织迹 WorkWeave Discord](https://discord.gg/PXcJdgd9d)
+- GitHub Issues：<https://github.com/MathsionYang/WorkWeave/issues>
 
 ---
 
