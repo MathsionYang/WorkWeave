@@ -552,7 +552,7 @@ docs/         WorkBuddy 测试手册
 
 ## 社区与反馈
 
-- Discord 频道：[织迹 WorkWeave](https://discord.com/channels/1533993347327463434/1568074955474608200)
+- Discord 社区：[加入织迹 WorkWeave Discord](https://discord.gg/PXcJdgd9d)
 
 ---
 
