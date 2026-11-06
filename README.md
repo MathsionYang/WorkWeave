@@ -550,6 +550,12 @@ docs/         WorkBuddy 测试手册
 
 ---
 
+## 社区与反馈
+
+- Discord 频道：[织迹 WorkWeave](https://discord.com/channels/1533993347327463434/1568074955474608200)
+
+---
+
 ## License
 
 本项目采用 [MIT License](LICENSE)。
