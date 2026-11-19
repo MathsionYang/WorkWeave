@@ -92,7 +92,7 @@ test("同一项目多来源会话合并计算来源分布", () => {
   assert.equal(distribution.shares.find((share) => share.source === "dsh")?.share, 0.25);
 });
 
-test("日报八部分结构且项目只出现一次", () => {
+test("日报固定三类结构且项目只出现一次", () => {
   const report = buildFactReport({
     day: asPlainDate("2026-11-04"),
     dataVersion: "abc123",
@@ -113,22 +113,28 @@ test("日报八部分结构且项目只出现一次", () => {
 
   const markdown = renderMarkdown(report);
   for (const heading of [
-    "## 1. 今日概览",
-    "## 2. AI 协作与采纳",
-    "## 3. 今日调研",
-    "## 4. 按项目总结",
-    "## 5. 跨项目与未归属事项",
-    "## 6. 纯对话归类摘要",
-    "## 7. 待确认项",
-    "## 8. 证据索引"
+    "## 本期结论",
+    "## 1. 工作进展",
+    "### 1.1 日度分布",
+    "### 1.2 按项目归集",
+    "## 2. 问题与质量",
+    "### 2.1 解决的问题",
+    "### 2.2 测试结果",
+    "## 3. 调研与行动",
+    "### 3.1 本期调研",
+    "### 3.2 待优化项",
+    "## 4. 待办事项"
   ]) {
     assert.ok(markdown.includes(heading), `missing ${heading}`);
+  }
+  for (const removed of ["AI 协作与采纳", "数据覆盖边界", "证据索引"]) {
+    assert.equal(markdown.includes(removed), false, `unexpected section: ${removed}`);
   }
   assert.equal(markdown.split("### project-a").length - 1, 1);
   assert.equal(markdown.includes("（Codex）"), false);
 });
 
-test("部分可用来源使报告标注可能不完整", () => {
+test("日报固定模板不输出独立数据覆盖章节", () => {
   const report = buildFactReport({
     day: asPlainDate("2026-11-04"),
     dataVersion: "abc123",
@@ -148,7 +154,9 @@ test("部分可用来源使报告标注可能不完整", () => {
   });
 
   assert.equal(report.completeness.status, "possibly-incomplete");
-  assert.ok(renderMarkdown(report).includes("可能不完整"));
+  const markdown = renderMarkdown(report);
+  assert.equal(markdown.includes("可能不完整"), false);
+  assert.equal(markdown.includes("数据覆盖边界"), false);
 });
 
 test("原子导出写入目标且不留下临时文件", async () => {

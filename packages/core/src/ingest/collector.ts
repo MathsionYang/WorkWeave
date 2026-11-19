@@ -18,6 +18,24 @@ function dayOf(timestamp: string): string {
   return timestamp.slice(0, 10);
 }
 
+/** Return the portion of a parsed session that belongs to the requested day. */
+export function sessionForDateRange(parsed: ParsedSession, dayFrom: string, dayTo: string): ParsedSession | undefined {
+  if (dayFrom > dayTo) throw new RangeError("dayFrom must be on or before dayTo");
+  const messages = parsed.messages.filter((message) => {
+    const date = dayOf(message.timestamp);
+    return date >= dayFrom && date <= dayTo;
+  });
+  if (messages.length === 0) return undefined;
+  return {
+    ...parsed,
+    messages: messages.sort((left, right) => left.timestamp.localeCompare(right.timestamp))
+  };
+}
+
+export function sessionForDay(parsed: ParsedSession, day: string): ParsedSession | undefined {
+  return sessionForDateRange(parsed, day, day);
+}
+
 function computeDataVersion(day: string, sessions: readonly ParsedSession[]): DataVersion {
   const hash = createHash("sha256");
   hash.update(day);
@@ -46,14 +64,14 @@ export async function collectDay(input: CollectDayInput): Promise<CollectDayResu
       continue;
     }
 
-    const dailyMessages = parsed.messages.filter((message) => dayOf(message.timestamp) === input.day);
-    if (dailyMessages.length === 0) continue;
+    const daily = sessionForDay(parsed, input.day);
+    if (daily === undefined) continue;
 
     unknownTypeCount += parsed.unknownTypeCount;
     const existing = accumulators.get(parsed.sessionId);
     if (existing !== undefined) {
       duplicateSessionCount += 1;
-      for (const message of dailyMessages) {
+      for (const message of daily.messages) {
         existing.messages.set(message.messageId, message);
       }
       continue;
@@ -61,7 +79,7 @@ export async function collectDay(input: CollectDayInput): Promise<CollectDayResu
 
     accumulators.set(parsed.sessionId, {
       session: parsed,
-      messages: new Map(dailyMessages.map((message) => [message.messageId, message]))
+      messages: new Map(daily.messages.map((message) => [message.messageId, message]))
     });
   }
 

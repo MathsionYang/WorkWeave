@@ -127,13 +127,13 @@ test("MVP 端到端：三来源 + Claude 部分可用 + 无宿主事实模式", 
 
   assert.equal(first.sessionCount, 3);
   assert.ok(first.skippedSources.includes("claude"));
-  assert.ok(markdown.includes("可能不完整"));
-  assert.ok(markdown.includes("来源分布"));
+  assert.equal(markdown.includes("可能不完整"), false);
+  assert.ok(markdown.includes("codex"));
   for (const source of ["codex", "dsh", "workbuddy"]) {
     assert.ok(markdown.includes(source), `missing source: ${source}`);
   }
   assert.ok(markdown.includes("调研方案对比"));
-  assert.ok(markdown.includes("AI 协作与采纳"));
+  assert.equal(markdown.includes("AI 协作与采纳"), false);
 
   const second = await runReportCommand({
     day: "2026-11-04",

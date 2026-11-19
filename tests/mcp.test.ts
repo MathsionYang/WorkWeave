@@ -22,6 +22,15 @@ test("能力声明包含工具清单且不返回用户数据", () => {
   assert.equal(JSON.stringify(declaration).includes("messages"), false);
 });
 
+test("会话列表、读取和搜索作为有界 egress MCP 工具公开", () => {
+  for (const name of ["ww_sessions_list", "ww_session_read", "ww_sessions_search"] as const) {
+    const contract = TOOL_CONTRACTS.find((item) => item.name === name);
+    assert.ok(contract, `${name} should be registered`);
+    assert.equal(contract.permission, "egress");
+    assert.equal(contract.hasBody, false);
+  }
+});
+
 test("契约版本不匹配时返回 E-MCP-001", async () => {
   const gateway = makeGateway(new Map());
   const result = await gateway.invoke({
@@ -118,4 +127,13 @@ test("JSON-RPC tools/call 返回统一 envelope", async () => {
   assert.equal(parsed.id, 7);
   assert.equal(parsed.result.ok, true);
   assert.equal(parsed.result.data.templateVersion, "1.0.0");
+});
+
+
+test("???????? MCP ?????? dayFrom/dayTo ??? day", () => {
+  const ingest = TOOL_CONTRACTS.find((tool) => tool.name === "ww_source_ingest");
+  assert.ok(ingest);
+  assert.ok(ingest.params.some((param) => param.name === "dayFrom" && !param.required));
+  assert.ok(ingest.params.some((param) => param.name === "dayTo" && !param.required));
+  assert.ok(ingest.params.some((param) => param.name === "day" && !param.required));
 });

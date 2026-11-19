@@ -96,7 +96,10 @@ function buildProjects(
       optimizations: insight?.optimizations ?? [],
       risks: insight?.risks ?? [],
       blockers: insight?.blockers ?? [],
-      nextSteps: insight?.nextSteps ?? []
+      nextSteps: insight?.nextSteps ?? [],
+      todos: insight?.todos ?? [],
+      workstreams: insight?.workstreams ?? [],
+      ...(insight?.metrics !== undefined ? { metrics: insight.metrics } : {})
     };
   });
 }

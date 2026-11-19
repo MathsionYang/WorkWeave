@@ -74,7 +74,7 @@ test("V-19 索引差集生成 session-missing 并记录受影响数量", () => {
   assert.equal(declaration.gaps.find((gap) => gap.type === "session-missing")?.affectedCount, 2);
 });
 
-test("V-20 部分可用来源使报告与 Markdown 标注可能不完整", () => {
+test("V-20 报告模板省略独立的数据覆盖章节", () => {
   const report = buildFactReport({
     day: range.from,
     dataVersion: "v1",
@@ -93,7 +93,7 @@ test("V-20 部分可用来源使报告与 Markdown 标注可能不完整", () =>
     }
   });
   assert.equal(report.completeness.status, "possibly-incomplete");
-  assert.ok(renderMarkdown(report).includes("可能不完整"));
+  assert.equal(renderMarkdown(report).includes("可能不完整"), false);
 });
 
 test("V-21 证据包携带完整性声明与九类空类别原因", () => {

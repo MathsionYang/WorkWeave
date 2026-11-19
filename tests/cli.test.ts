@@ -55,7 +55,7 @@ function jsonl(sessionId: string, source: "codex" | "workbuddy"): string {
   ].join("\n");
 }
 
-test("端到端报告命令产出八部分 Markdown 与数据版本", async () => {
+test("端到端报告命令产出统一结构 Markdown 与数据版本", async () => {
   const home = await mkdtemp(join(tmpdir(), "ww-cli-"));
   const codexDir = join(home, ".codex", "sessions", "2026", "11", "04");
   const workbuddyDir = join(home, ".workbuddy", "projects", "d-项目-CheckMCP-Doc");
@@ -79,14 +79,17 @@ test("端到端报告命令产出八部分 Markdown 与数据版本", async () =
   assert.ok(result.dataVersion.length > 0);
   const markdown = await readFile(out, "utf8");
   for (const heading of [
-    "## 1. 今日概览",
-    "## 2. AI 协作与采纳",
-    "## 3. 今日调研",
-    "## 4. 按项目总结",
-    "## 5. 跨项目与未归属事项",
-    "## 6. 纯对话归类摘要",
-    "## 7. 待确认项",
-    "## 8. 证据索引"
+    "## 本期结论",
+    "## 1. 工作进展",
+    "### 1.1 日度分布",
+    "### 1.2 按项目归集",
+    "## 2. 问题与质量",
+    "### 2.1 解决的问题",
+    "### 2.2 测试结果",
+    "## 3. 调研与行动",
+    "### 3.1 本期调研",
+    "### 3.2 待优化项",
+    "## 4. 待办事项"
   ]) {
     assert.ok(markdown.includes(heading), `missing ${heading}`);
   }

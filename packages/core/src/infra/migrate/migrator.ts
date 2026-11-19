@@ -81,6 +81,68 @@ export const MIGRATIONS: readonly Migration[] = [
         payload TEXT NOT NULL
       );
     `
+  },
+  {
+    version: 2,
+    name: "session-search-and-ingest-checkpoints",
+    up: `
+      ALTER TABLE sessions ADD COLUMN project_id TEXT;
+
+      CREATE TABLE messages_v2 (
+        source_tool TEXT NOT NULL,
+        session_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        role TEXT NOT NULL,
+        timestamp TEXT NOT NULL,
+        ordinal INTEGER,
+        body TEXT,
+        PRIMARY KEY (source_tool, session_id, message_id)
+      );
+      INSERT OR IGNORE INTO messages_v2 (source_tool, session_id, message_id, role, timestamp, ordinal, body)
+        SELECT source_tool, session_id, message_id, role, timestamp, ordinal, body FROM messages;
+      DROP TABLE messages;
+      ALTER TABLE messages_v2 RENAME TO messages;
+      CREATE INDEX idx_messages_session ON messages (source_tool, session_id, timestamp);
+      CREATE INDEX idx_sessions_started ON sessions (started_at, source_tool, session_id);
+      CREATE INDEX idx_sessions_project ON sessions (project_id, started_at);
+
+      CREATE VIRTUAL TABLE messages_fts USING fts5(
+        source_tool UNINDEXED,
+        session_id UNINDEXED,
+        message_id UNINDEXED,
+        body,
+        tokenize='unicode61'
+      );
+      INSERT INTO messages_fts (source_tool, session_id, message_id, body)
+        SELECT source_tool, session_id, message_id, body FROM messages WHERE body IS NOT NULL AND body <> '';
+
+      CREATE TABLE ingest_runs (
+        run_id TEXT PRIMARY KEY,
+        day TEXT NOT NULL,
+        source_tool TEXT,
+        status TEXT NOT NULL,
+        scanned_units INTEGER NOT NULL DEFAULT 0,
+        successful_units INTEGER NOT NULL DEFAULT 0,
+        failed_units INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE INDEX idx_ingest_runs_scope ON ingest_runs (day, source_tool, status);
+
+      CREATE TABLE ingest_checkpoints (
+        run_id TEXT NOT NULL,
+        source_tool TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        fingerprint TEXT NOT NULL,
+        status TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        error_code TEXT,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (run_id, source_tool, source_path),
+        FOREIGN KEY (run_id) REFERENCES ingest_runs(run_id) ON DELETE CASCADE
+      );
+      CREATE INDEX idx_ingest_checkpoints_status ON ingest_checkpoints (run_id, status);
+    `
   }
 ];
 

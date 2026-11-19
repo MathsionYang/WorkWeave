@@ -7,6 +7,7 @@ export default tseslint.config(
       "**/dist/**",
       "**/dist-tests/**",
       "**/node_modules/**",
+      "references/**",
       "**/*.mjs",
       ".codeartsdoer/**",
       ".arts/**"

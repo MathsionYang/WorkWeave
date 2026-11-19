@@ -23,9 +23,56 @@ export const TOOL_CONTRACTS: readonly ToolContract[] = [
     permission: "read-ingest",
     hasBody: false,
     params: [
-      { name: "day", required: true, type: "string" },
+      { name: "day", required: false, type: "string", max: 10 },
+      { name: "dayFrom", required: false, type: "string", max: 10 },
+      { name: "dayTo", required: false, type: "string", max: 10 },
       { name: "source", required: false, type: "string", enum: SOURCE_TOOL_VALUES },
+      { name: "resume", required: false, type: "boolean" },
       { name: "waitForCompletion", required: false, type: "boolean" }
+    ]
+  },
+  {
+    name: "ww_sessions_list",
+    title: "会话列表",
+    description: "按日期、来源和项目筛选本地会话，仅返回元数据并支持分页。",
+    permission: "egress",
+    hasBody: false,
+    params: [
+      { name: "dayFrom", required: false, type: "string", max: 10 },
+      { name: "dayTo", required: false, type: "string", max: 10 },
+      { name: "sourceTool", required: false, type: "string", enum: SOURCE_TOOL_VALUES },
+      { name: "projectId", required: false, type: "string", max: 300 },
+      { name: "limit", required: false, type: "number", min: 1, max: 100 },
+      { name: "offset", required: false, type: "number", min: 0, max: 1000000 }
+    ]
+  },
+  {
+    name: "ww_session_read",
+    title: "读取会话",
+    description: "按来源身份读取单个会话的有界消息页，并保留消息来源引用。",
+    permission: "egress",
+    hasBody: false,
+    params: [
+      { name: "sourceTool", required: true, type: "string", enum: SOURCE_TOOL_VALUES },
+      { name: "sessionId", required: true, type: "string", max: 500 },
+      { name: "limit", required: false, type: "number", min: 1, max: 100 },
+      { name: "offset", required: false, type: "number", min: 0, max: 1000000 }
+    ]
+  },
+  {
+    name: "ww_sessions_search",
+    title: "搜索会话",
+    description: "全文搜索本地会话，返回有界脱敏片段与完整原始消息引用。",
+    permission: "egress",
+    hasBody: false,
+    params: [
+      { name: "query", required: true, type: "string", max: 256 },
+      { name: "dayFrom", required: false, type: "string", max: 10 },
+      { name: "dayTo", required: false, type: "string", max: 10 },
+      { name: "sourceTool", required: false, type: "string", enum: SOURCE_TOOL_VALUES },
+      { name: "projectId", required: false, type: "string", max: 300 },
+      { name: "limit", required: false, type: "number", min: 1, max: 100 },
+      { name: "offset", required: false, type: "number", min: 0, max: 1000000 }
     ]
   },
   {
@@ -85,7 +132,9 @@ export const TOOL_CONTRACTS: readonly ToolContract[] = [
     permission: "egress",
     hasBody: false,
     params: [
-      { name: "day", required: true, type: "string" },
+      { name: "day", required: false, type: "string" },
+      { name: "dayFrom", required: false, type: "string", max: 10 },
+      { name: "dayTo", required: false, type: "string", max: 10 },
       { name: "out", required: true, type: "string" },
       { name: "format", required: false, type: "string", enum: ["markdown", "json", "html"] }
     ]

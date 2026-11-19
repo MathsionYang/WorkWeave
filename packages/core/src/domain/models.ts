@@ -38,6 +38,7 @@ export interface Session {
   readonly startedAt: Instant;
   readonly endedAt?: Instant;
   readonly workDir?: string;
+  readonly projectId?: ProjectId | "cross-project" | "unassigned";
   readonly title?: string;
   readonly messages: readonly Message[];
 }

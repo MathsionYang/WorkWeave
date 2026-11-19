@@ -10,6 +10,7 @@ import type { AdoptionStats } from "../adoption/engine.js";
 import type { ResearchFinding } from "../adoption/research.js";
 import type { ParsedSession } from "../ingest/types.js";
 import type { PlainDate, SourceTool } from "../domain/types.js";
+import type { ProjectMetrics, WorkstreamInsight } from "./insights.js";
 
 export interface OverviewMetrics {
   readonly sessions: number;
@@ -38,6 +39,9 @@ export interface ProjectReportSection {
   readonly risks?: readonly string[];
   readonly blockers?: readonly string[];
   readonly nextSteps?: readonly string[];
+  readonly todos?: readonly string[];
+  readonly workstreams?: readonly WorkstreamInsight[];
+  readonly metrics?: ProjectMetrics;
 }
 
 export interface PureConversationSummary {

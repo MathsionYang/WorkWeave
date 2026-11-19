@@ -93,7 +93,7 @@ test("PDF 引擎缺失时给出可读错误且不阻塞 Markdown", async () => {
     renderer.render(report),
     (error: unknown) => error instanceof WorkWeaveError && error.code === "E-RPT-001"
   );
-  assert.ok(renderMarkdown(report).includes("今日概览"));
+  assert.ok(renderMarkdown(report).includes("1. 工作进展"));
 
   const withEngine = new PdfRenderer({ render: async () => Buffer.from("%PDF") });
   assert.equal((await withEngine.render(report)).toString(), "%PDF");

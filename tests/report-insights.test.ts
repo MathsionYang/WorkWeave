@@ -15,6 +15,7 @@ import {
   deriveProjectName,
   detectResearchFindings,
   isNoiseText,
+  renderHtml,
   renderMarkdown
 } from "@workweave/core";
 import type { ClassifiedSession, Message, ParsedSession, TestFact } from "@workweave/core";
@@ -135,10 +136,75 @@ test("报告能产出可读的任务、完成事项、问题与下一步", () =>
   assert.ok(report.nextSteps?.some((step) => step.includes("修复失败测试")));
 
   const markdown = renderMarkdown(report);
-  assert.ok(markdown.includes("一句话总结"));
-  assert.ok(markdown.includes("今日任务"));
-  assert.ok(markdown.includes("需要继续优化"));
+  assert.ok(markdown.includes("## 本期结论"));
+  assert.ok(markdown.includes("- 任务："));
+  assert.ok(markdown.includes("待优化项"));
   assert.equal(markdown.includes("未提供"), false);
   assert.equal(markdown.includes("environment_context"), false);
   assert.equal(markdown.includes("无法判定率 100.0%"), false);
+});
+
+test("报告先给结论，再按工作进展、质量、行动三类递进组织", () => {
+  const report = buildFactReport({
+    day,
+    dataVersion: "v-structured-summary",
+    sessions: [session],
+    classifications: [classification],
+    tests: [failedTest],
+    submissions: [],
+    adoption: aggregateAdoption([], []),
+    research: []
+  });
+
+  const markdown = renderMarkdown(report);
+  const conclusion = markdown.indexOf("## 本期结论");
+  const outcomes = markdown.indexOf("## 1. 工作进展");
+  const issues = markdown.indexOf("## 2. 问题与质量");
+  const decisions = markdown.indexOf("## 3. 调研与行动");
+
+  assert.ok(conclusion >= 0, "starts with a clear conclusion section");
+  assert.ok(outcomes > conclusion, "outcomes support the conclusion");
+  assert.ok(issues > outcomes, "issues follow the achieved outcomes");
+  assert.ok(decisions > issues, "actions follow from the issues");
+  assert.equal((markdown.match(/^## (1\. 工作进展|2\. 问题与质量|3\. 调研与行动)$/gm) ?? []).length, 3);
+  assert.match(markdown, /修复登录超时/);
+  assert.match(markdown, /auth\.spec\.ts:42/);
+
+  const html = renderHtml(report);
+  assert.ok(html.indexOf("本期结论") < html.indexOf("1. 工作进展"));
+  assert.ok(html.indexOf("1. 工作进展") < html.indexOf("2. 问题与质量"));
+  assert.ok(html.indexOf("2. 问题与质量") < html.indexOf("3. 调研与行动"));
+});
+
+test("从项目详情提取明确待办并单独成节，排除完成项和纯风险建议", () => {
+  const detailedSession: ParsedSession = {
+    ...session,
+    messages: [
+      ...session.messages,
+      message("assistant", "建议优化报告加载性能；风险是旧配置不兼容", 4),
+      message("assistant", "后续需要补充 WorkBuddy 区间采集回归测试", 5)
+    ]
+  };
+  const report = buildFactReport({
+    day,
+    dataVersion: "v-todos",
+    sessions: [detailedSession],
+    classifications: [classification],
+    tests: [failedTest],
+    submissions: [],
+    adoption: aggregateAdoption([], []),
+    research: []
+  });
+
+  const markdown = renderMarkdown(report);
+  const html = renderHtml(report);
+  const todoSection = markdown.split("## 4. 待办事项")[1] ?? "";
+  assert.ok(todoSection.includes("补充回归用例"));
+  assert.ok(todoSection.includes("补充 WorkBuddy 区间采集回归测试"));
+  assert.ok(todoSection.includes("修复失败测试"));
+  assert.equal(todoSection.includes("已修复登录超时"), false);
+  assert.equal(todoSection.includes("优化报告加载性能"), false);
+  assert.equal(todoSection.includes("旧配置不兼容"), false);
+  assert.ok(html.includes("4. 待办事项"));
+  assert.ok(html.includes("补充 WorkBuddy 区间采集回归测试"));
 });

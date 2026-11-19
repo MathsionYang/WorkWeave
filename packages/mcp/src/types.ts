@@ -6,6 +6,9 @@ export const MCP_PROTOCOL_VERSIONS = ["2024-11-05", "2025-03-26"] as const;
 export type ToolName =
   | "ww_source_probe"
   | "ww_source_ingest"
+  | "ww_sessions_list"
+  | "ww_session_read"
+  | "ww_sessions_search"
   | "ww_work_classify"
   | "ww_fact_extract"
   | "ww_evidence_package"

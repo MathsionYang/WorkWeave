@@ -69,7 +69,7 @@ test("MCP 服务端完成 initialize 握手并声明工具 schema", async () => 
     };
   };
 
-  assert.equal(list.result.tools.length, 10);
+  assert.equal(list.result.tools.length, 13);
   const probeTool = list.result.tools.find((tool) => tool.name === "ww_source_probe");
   assert.equal(probeTool?.inputSchema.properties.source?.type, "string");
   assert.ok(probeTool?.inputSchema.properties.source?.enum?.includes("codex"));

@@ -1,6 +1,7 @@
 import { WorkWeaveError } from "../domain/errors.js";
 import { renderHtml } from "./render-html.js";
 import type { FactReport } from "./types.js";
+import type { WeeklyReport } from "./weekly.js";
 
 export interface PdfEngine {
   render(html: string): Promise<Buffer>;
@@ -9,7 +10,7 @@ export interface PdfEngine {
 export class PdfRenderer {
   constructor(private readonly engine?: PdfEngine) {}
 
-  async render(report: FactReport): Promise<Buffer> {
+  async render(report: FactReport | WeeklyReport): Promise<Buffer> {
     if (this.engine === undefined) {
       throw new WorkWeaveError(
         "E-RPT-001",

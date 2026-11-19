@@ -18,7 +18,7 @@
 | 装好并生成第一份日报 | [快速开始](#快速开始) |
 | 把织迹接入 WorkBuddy | [WorkBuddy 配置详解](#workbuddy-配置详解) |
 | 确认本机 Codex / dsh / Claude 记录在哪 | [支持的数据来源](#支持的数据来源) |
-| 查看 10 个 MCP 工具与参数 | [MCP 工具](#mcp-工具) |
+| 查看 13 个 MCP 工具与参数 | [MCP 工具](#mcp-工具) |
 | 报告长什么样、包含哪些部分 | [报告结构](#报告结构) |
 | 配置报错、工具不出现 | [常见配置错误](#常见配置错误) |
 
@@ -72,7 +72,7 @@
 | 今日调研 | 识别调研主题、结论状态与证据 |
 | 结构化证据包 | 九类证据、最小必要片段、脱敏、上限裁剪、可回查 |
 | 跨工具统一视图 | 同一项目多来源会话合并为一个项目章节，并给出来源分布 |
-| 八部分报告 | Markdown / JSON / HTML / PDF，原子导出 |
+| 固定结构报告 | 日报与周报统一章节；HTML / Markdown / JSON / PDF 原子导出 |
 | 安全边界 | 本地优先、凭据硬排除、路径守卫、脱敏、审计哈希链 |
 
 ---
@@ -366,7 +366,7 @@ WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面
 - `WORKWEAVE_PLATFORM`：自动识别
 - `WORKWEAVE_HOST_ID`：`workbuddy`
 - `WORKWEAVE_TOKEN`：`local-token`
-- SQLite：使用内存库
+- SQLite：会话和 checkpoint 默认持久化到 `.workweave/workweave.sqlite`
 - PDF：自动探测系统 CJK 字体
 
 ### 环境变量详解
@@ -377,7 +377,7 @@ WorkBuddy 通过 MCP stdio 启动织迹。不同版本的 WorkBuddy 配置界面
 | `WORKWEAVE_PLATFORM` | 否 | 自动识别 | `win32` / `darwin` / `linux` |
 | `WORKWEAVE_HOST_ID` | 否 | `workbuddy` | 本地网关宿主标识 |
 | `WORKWEAVE_TOKEN` | 否 | `local-token` | 本地网关校验令牌；MCP 客户端无需单独传递 |
-| `WORKWEAVE_DB_PATH` | 否 | 内存库 | SQLite 文件路径；**父目录必须已存在** |
+| `WORKWEAVE_DB_PATH` | 否 | 默认持久化至用户目录 | SQLite 文件路径；自定义时父目录必须已存在 |
 | `WORKWEAVE_PDF_FONT` | 否 | 自动探测 | PDF 中文字体 TTF/TTC 路径 |
 | `CODEX_HOME` | 否 | `%USERPROFILE%\.codex` | Codex 记录根目录 |
 | `WORKBUDDY_HOME` | 否 | `%USERPROFILE%\.workbuddy` | WorkBuddy 记录根目录 |
@@ -471,20 +471,30 @@ node "D:\path\to\WorkWeave\packages\mcp\dist\main.js"
 
 ---
 
-## MCP 工具
+### 六个参考项目的能力吸收状态
 
+| 参考项目 | 吸收的能力 | WorkWeave 状态 |
+|---|---|---|
+| Windback | SQLite 会话底座、列表/读取/搜索模式 | 已接入，并提供分页和内容上限 |
+| ChatWizard | 多来源适配与精确重复分组思路 | Codex、WorkBuddy、dsh 已接入；搜索按同项目、十分钟内完全相同的用户提示聚合来源引用；embedding 暂缓 |
+| Aiscribe | 原生连接器覆盖与能力状态 | 当前明确支持 Codex、WorkBuddy、dsh；Claude 仍受取证门禁，其余来源按路线图分批开发 |
+| Halowake | 本地解析与事实/叙述分层 | 采集解析本地完成，不依赖模型 API |
+| agentrecap | Token、模型、成本与工具调用分析 | 列入第三期，尚未接入 |
+| devday | 会话与 Git 变更交叉引用 | 列入第三期，尚未接入 |
+
+## MCP 工具
 契约版本：`1.0.0`
 
 | 工具 | 作用 | 主要参数 |
 |---|---|---|
 | `ww_source_probe` | 探测来源可用性与完整性 | `source?`、`ignoreCache?` |
-| `ww_source_ingest` | 按日采集、标准化、去重 | `day`、`source?`、`waitForCompletion?` |
+| `ww_source_ingest` | 按日或日期区间采集，支持断点续采 | `day` 或 `dayFrom` + `dayTo`，另有 `source?`、`resume?` |
 | `ww_work_classify` | 规则链归类项目与活动类别 | `day`、`projectId?` |
 | `ww_fact_extract` | 抽取测试、提交、问题等事实 | `day` |
 | `ww_evidence_package` | 生成九类结构化证据包 | `day`、`maxEntries?` |
 | `ww_skill_template_get` | 返回六部分总结模板 | 无 |
 | `ww_summary_validate` | 九维校验宿主生成结果 | `packageId`、`templateVersion`、`sections` |
-| `ww_report_export` | 导出 HTML（默认）/ JSON / Markdown / PDF | `day`、`out`、`format?` |
+| `ww_report_export` | 导出日报或日期区间周报；HTML（默认）/ JSON / Markdown / PDF | `day` 或 `dayFrom` + `dayTo`、`out`、`format?` |
 | `ww_pending_manage` | 查询/确认/忽略待确认项 | `day`、`type?`、`action?`、`id?` |
 | `ww_evidence_resolve` | 按引用回查证据 | `packageId`、`evidenceId` |
 
@@ -494,28 +504,17 @@ node "D:\path\to\WorkWeave\packages\mcp\dist\main.js"
 
 ## 报告结构
 
-HTML 是默认主报告，包含自包含离线图表；Markdown/JSON 为附属与权威格式。每份报告在指标之外还必须回答：我做了什么、结果如何、哪些需要继续优化。
+日报与周报共用固定模板，先给本期结论，再依次呈现工作进展、问题与质量、调研与行动，最后单独列出待办事项。无数据的栏目仍保留，并给出明确的空状态提示。
 
-1. **今日概览**：一句话总结、会话/项目/测试/提交/采纳指标、下一步建议
-2. **AI 协作与采纳**：可确证/推断/未采纳/可判定样本/无法判定原因
-3. **今日调研**：主题、结论状态、原因与证据；系统提示与闲聊不算调研
-4. **按项目总结**：
-   - 业务可读项目名、来源分布
-   - 今日任务、完成事项、问题、测试与质量
-   - 风险/阻塞/待优化、下一步建议
-5. **跨项目与未归属事项**
-6. **纯对话归类摘要**
-7. **待确认项**：低置信度、记录完整性缺口等
-8. **证据索引**：会话/消息/时间/来源引用
+1. **本期结论**：概括最重要的已完成进展或说明缺少可核对结论。
+2. **工作进展**：日度分布与按项目归集，展示任务、完成事项、工作量和来源。
+3. **问题与质量**：已解决的问题及测试四态结果（通过 / 失败 / 阻塞 / 未执行）。
+4. **调研与行动**：调研主题、结论状态、风险和一般待优化项。
+5. **待办事项**：从项目与工作线详情提取明确未完成行动，并纳入失败测试修复和阻塞解除事项；不重复已完成内容，不把单纯风险或泛化建议当作待办，也不臆造负责人和截止日期。
 
-报告会过滤系统提示、`environment_context`、工具脚手架等噪声；项目名优先取仓库根目录/`package.json`/结构化路径，避免时间戳与不可读目录名。
+`ww_report_export` 支持单日参数 `day`，以及首尾日期均包含的周报区间 `dayFrom` + `dayTo`。HTML 默认并使用内联样式和图表；Markdown 与 PDF 采用相同章节和顺序，JSON 输出结构化数据。所有格式都从同一报告数据模型生成。
 
-报告完整性标记只有两种对外取值：
-
-- `完整`
-- `可能不完整`
-
-“完整性无法判定”作为原因附注，不单独作为对外状态，避免宿主误读。
+报告会过滤系统提示、`environment_context`、工具脚手架等噪声；项目名优先取仓库根目录 / `package.json` / 结构化路径，避免时间戳与不可读目录名。来源完整性仍由来源探测和待确认项工具提供，不额外占用报告章节。
 
 ---
 
@@ -615,3 +614,17 @@ docs/         WorkBuddy 测试手册
 本项目采用 [MIT License](LICENSE)。
 
 Copyright (c) 2026 MathsionYang
+
+
+### 第一期采集入口
+
+CLI 与 MCP 共用同一套 SQLite runtime、适配器和 checkpoint：
+
+```text
+workweave ingest --day=YYYY-MM-DD [--source=codex|workbuddy|dsh] [--resume]
+```
+
+返回中的 `completedFiles`、`failedFiles`、`resumedFiles` 分别表示已完成、失败和从断点跳过的文件数。重启 WorkBuddy 后这些 checkpoint 仍保存在 SQLite 数据库中；MCP 调用使用同一入口 `ww_source_ingest({ day, source?, resume? })`。
+
+
+日期区间采集例如：`ww_source_ingest({"dayFrom":"2026-11-01","dayTo":"2026-11-19","source":"codex","resume":true})`。区间两端包含，`day` 单日调用继续兼容。CLI 支持 `workweave ingest --day-from=2026-11-01 --day-to=2026-11-19 --source=codex --resume`。

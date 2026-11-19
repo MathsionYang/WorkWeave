@@ -14,6 +14,13 @@ export interface WeeklyReport {
   readonly dataVersion: string;
   readonly generatedAt: string;
   readonly overview: OverviewMetrics & { readonly days: number };
+  readonly dailyDistribution: readonly {
+    readonly day: string;
+    readonly sessions: number;
+    readonly projects: number;
+    readonly tests: number;
+    readonly failures: number;
+  }[];
   readonly adoption: AdoptionStats;
   readonly research: readonly ResearchFinding[];
   readonly projects: readonly ProjectReportSection[];
@@ -69,6 +76,7 @@ interface ProjectAccumulator {
   risks: string[];
   blockers: string[];
   nextSteps: string[];
+  todos: string[];
 }
 
 function pushUnique(target: string[], values: readonly string[] | undefined, limit = 10): void {
@@ -93,7 +101,8 @@ function mergeProjects(reports: readonly FactReport[]): readonly ProjectReportSe
         optimizations: [],
         risks: [],
         blockers: [],
-        nextSteps: []
+        nextSteps: [],
+        todos: []
       };
       entry.sessions += project.distribution.totalSessions;
       entry.messages += project.distribution.totalMessages;
@@ -111,6 +120,7 @@ function mergeProjects(reports: readonly FactReport[]): readonly ProjectReportSe
       pushUnique(entry.risks, project.risks);
       pushUnique(entry.blockers, project.blockers);
       pushUnique(entry.nextSteps, project.nextSteps);
+      pushUnique(entry.todos, project.todos);
       map.set(project.projectId, entry);
     }
   }
@@ -135,7 +145,8 @@ function mergeProjects(reports: readonly FactReport[]): readonly ProjectReportSe
     optimizations: entry.optimizations,
     risks: entry.risks,
     blockers: entry.blockers,
-    nextSteps: entry.nextSteps
+    nextSteps: entry.nextSteps,
+    todos: entry.todos
   }));
 }
 
@@ -181,6 +192,15 @@ export function buildWeeklyReport(
     dataVersion: hash.digest("hex").slice(0, 16),
     generatedAt: new Date().toISOString(),
     overview,
+    dailyDistribution: reports
+      .map((report) => ({
+        day: report.range.from,
+        sessions: report.overview.sessions,
+        projects: report.overview.projects,
+        tests: report.overview.tests,
+        failures: report.overview.failures
+      }))
+      .sort((left, right) => left.day.localeCompare(right.day)),
     adoption,
     research: reports.flatMap((report) => report.research),
     projects: mergeProjects(reports),

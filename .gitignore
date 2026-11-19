@@ -5,4 +5,4 @@ dist-tests/
 .codeartsdoer/
 .arts/
 coverage/
-.DS_Store
+.DS_Store/references/

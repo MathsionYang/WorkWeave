@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { ProbeService } from "@workweave/core";
 import type { Platform, SourceTool } from "@workweave/core";
 import { defaultReportPath, runReportCommand } from "./report-command.js";
+import { runIngestCommand } from "./ingest-command.js";
 
 function parsePlatform(value: string | undefined): Platform {
   if (value === "win32" || value === "darwin" || value === "linux") return value;
@@ -43,6 +44,42 @@ export async function runCli(argv: readonly string[]): Promise<number> {
     console.log(`sessions=${result.sessionCount}`);
     console.log(`skipped=${result.skippedSources.join(",") || "-"}`);
     return 0;
+  }
+
+  if (command === "ingest") {
+    const day = argv.find((arg) => arg.startsWith("--day="))?.split("=")[1];
+    const dayFrom = argv.find((arg) => arg.startsWith("--day-from="))?.split("=")[1];
+    const dayTo = argv.find((arg) => arg.startsWith("--day-to="))?.split("=")[1];
+    if ((dayFrom === undefined) !== (dayTo === undefined) || (day !== undefined && dayFrom !== undefined)) {
+      console.error("use --day or provide both --day-from and --day-to");
+      return 2;
+    }
+    const sourceValue = argv.find((arg) => arg.startsWith("--source="))?.split("=")[1];
+    const source = sourceValue !== undefined && ["codex", "claude", "workbuddy", "dsh"].includes(sourceValue)
+      ? sourceValue as SourceTool
+      : undefined;
+    if (sourceValue !== undefined && source === undefined) {
+      console.error(`invalid source: ${sourceValue}`);
+      return 2;
+    }
+    const homeDir = argv.find((arg) => arg.startsWith("--home="))?.split("=")[1];
+    const result = await runIngestCommand({
+      ...(day !== undefined ? { day } : {}),
+      ...(dayFrom !== undefined ? { dayFrom } : {}),
+      ...(dayTo !== undefined ? { dayTo } : {}),
+      ...(source !== undefined ? { source } : {}),
+      resume: argv.includes("--resume"),
+      ...(homeDir !== undefined ? { homeDir } : {}),
+      platform: parsePlatform(argv.find((arg) => arg.startsWith("--platform="))?.split("=")[1]),
+      ...(process.env.WORKWEAVE_DB_PATH !== undefined ? { dbPath: process.env.WORKWEAVE_DB_PATH } : {})
+    });
+    console.log(`sessions=${result.sessionCount}`);
+    console.log(`messages=${result.messageCount}`);
+    console.log(`completedFiles=${result.completedFiles}`);
+    console.log(`failedFiles=${result.failedFiles}`);
+    console.log(`resumedFiles=${result.resumedFiles}`);
+    console.log(`warnings=${result.warnings.join(",") || "-"}`);
+    return result.failedFiles > 0 ? 1 : 0;
   }
 
   if (command !== "probe") {

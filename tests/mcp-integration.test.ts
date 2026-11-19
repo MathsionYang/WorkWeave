@@ -27,7 +27,7 @@ function codexLines(): string {
         type: "message",
         id: "c1",
         role: "user",
-        content: [{ type: "text", text: "运行 npm test 修复登录 bug" }]
+        content: [{ type: "text", text: "运行 npm test 修复登录 bug，联系 dev@example.com" }]
       }
     }),
     JSON.stringify({
@@ -73,6 +73,55 @@ test("MCP 运行时串通探测、采集、归类、证据包、回查与导出"
   const ingest = await call("ww_source_ingest", { day: DAY }, "ingest-1");
   assert.equal(ingest.ok, true);
   assert.equal((ingest.data as { sessionCount: number }).sessionCount, 1);
+
+  const sessions = await call(
+    "ww_sessions_list",
+    { dayFrom: DAY, dayTo: DAY, sourceTool: "codex", limit: 10 },
+    "sessions-list-1"
+  );
+  assert.equal(sessions.ok, true);
+  const sessionPage = sessions.data as { items: { sessionId: string; messageCount: number; messages?: unknown }[]; total: number };
+  assert.equal(sessionPage.total, 1);
+  assert.equal(sessionPage.items[0]?.sessionId, "codex-1");
+  assert.equal(sessionPage.items[0]?.messageCount, 2);
+  assert.equal(sessionPage.items[0]?.messages, undefined);
+
+  const read = await call(
+    "ww_session_read",
+    { sourceTool: "codex", sessionId: "codex-1", limit: 1, offset: 0 },
+    "session-read-1"
+  );
+  assert.equal(read.ok, true);
+  const readPage = read.data as { session: { sourceTool: string; sessionId: string }; totalMessages: number; messages: { messageId: string; text?: string }[]; hasMore: boolean };
+  assert.equal(readPage.session.sourceTool, "codex");
+  assert.equal(readPage.totalMessages, 2);
+  assert.equal(readPage.messages.length, 1);
+  assert.equal(readPage.messages[0]?.messageId, "c1");
+  assert.equal(readPage.messages[0]?.text?.includes("dev@example.com"), false);
+  assert.equal(readPage.hasMore, true);
+
+  const search = await call("ww_sessions_search", { query: "npm test", sourceTool: "codex", limit: 5 }, "sessions-search-1");
+  assert.equal(search.ok, true);
+  const searchPage = search.data as { total: number; items: { messageId: string; text: string; sources: { sourceTool: string; sessionId: string; messageId: string }[] }[] };
+  assert.equal(searchPage.total, 1);
+  assert.equal(searchPage.items[0]?.messageId, "c1");
+  assert.equal(searchPage.items[0]?.text.includes("dev@example.com"), false);
+  assert.deepEqual(searchPage.items[0]?.sources, [{ sourceTool: "codex", sessionId: "codex-1", messageId: "c1" }]);
+
+  const restartedRuntime = new WorkWeaveRuntime({ homeDir: home, platform: "linux", env: {} });
+  const restartedGateway = new ContractGateway({
+    expectedHostId: HOST,
+    expectedToken: TOKEN,
+    handlers: createRuntimeHandlers(restartedRuntime)
+  });
+  const restartedList = await restartedGateway.invoke({
+    tool: "ww_sessions_list",
+    callId: "after-restart",
+    auth: { hostId: HOST, token: TOKEN },
+    params: { dayFrom: DAY, dayTo: DAY, sourceTool: "codex" }
+  });
+  assert.equal(restartedList.ok, true);
+  assert.equal((restartedList.data as { total: number }).total, 1);
 
   const classify = await call("ww_work_classify", { day: DAY }, "classify-1");
   assert.equal(classify.ok, true);
@@ -126,6 +175,19 @@ test("MCP 运行时串通探测、采集、归类、证据包、回查与导出"
   const exported = await call("ww_report_export", { day: DAY, out, format: "markdown" }, "export-1");
   assert.equal(exported.ok, true);
   const markdown = await readFile(out, "utf8");
-  assert.ok(markdown.includes("## 1. 今日概览"));
-  assert.ok(markdown.includes("## 8. 证据索引"));
+  assert.ok(markdown.includes("## 本期结论"));
+  assert.ok(markdown.includes("## 1. 工作进展"));
+  assert.ok(markdown.includes("## 3. 调研与行动"));
+
+  const weeklyOut = join(home, "mcp-weekly.md");
+  const weeklyExport = await call(
+    "ww_report_export",
+    { dayFrom: DAY, dayTo: "2026-11-05", out: weeklyOut, format: "markdown" },
+    "export-weekly-1"
+  );
+  assert.equal(weeklyExport.ok, true);
+  const weeklyMarkdown = await readFile(weeklyOut, "utf8");
+  assert.ok(weeklyMarkdown.startsWith("# 织迹近一周工作报告"));
+  assert.ok(weeklyMarkdown.includes("| 2026-11-04 |"));
+  assert.ok(weeklyMarkdown.includes("| 2026-11-05 |"));
 });

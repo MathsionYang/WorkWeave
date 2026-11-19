@@ -13,7 +13,8 @@ import {
   buildFactReport,
   buildWeeklyReport,
   escapeHtml,
-  renderHtml
+  renderHtml,
+  renderMarkdown
 } from "@workweave/core";
 import type { ClassifiedSession, ParsedSession, TestFact } from "@workweave/core";
 
@@ -79,8 +80,13 @@ function makeReport(day: string, sessionId: string) {
 test("HTML 由同一报告 IR 渲染并转义危险字符", () => {
   const report = makeReport("2026-11-04", "s1");
   const html = renderHtml(report);
-  assert.ok(html.includes("<h2>1. 今日概览</h2>"));
-  assert.ok(html.includes("<h2>8. 证据索引</h2>"));
+  assert.ok(html.includes("<h2>本期结论</h2>"));
+  assert.ok(html.includes("<h2>1. 工作进展</h2>"));
+  assert.ok(html.includes("<h2>2. 问题与质量</h2>"));
+  assert.ok(html.includes("<h2>3. 调研与行动</h2>"));
+  for (const removed of ["AI 协作与采纳", "数据覆盖边界", "证据索引"]) {
+    assert.equal(html.includes(removed), false, `unexpected section: ${removed}`);
+  }
   assert.equal(escapeHtml("<script>alert('x')</script>"), "&lt;script&gt;alert(&#39;x&#39;)&lt;/script&gt;");
 });
 
@@ -96,7 +102,44 @@ test("周报聚合跨日项目与来源分布并标注缺失日期", () => {
   assert.equal(weekly.projects.length, 1);
   assert.equal(weekly.projects[0]?.projectId, "project-a");
   assert.equal(weekly.projects[0]?.distribution.totalSessions, 2);
+  assert.ok(weekly.projects[0]?.todos?.some((item) => item.includes("修复失败测试")));
   assert.equal(weekly.completeness.status, "complete");
+
+  const html = renderHtml(weekly);
+  const markdown = renderMarkdown(weekly);
+  for (const heading of ["本期结论", "1. 工作进展", "2. 问题与质量", "3. 调研与行动", "4. 待办事项"]) {
+    assert.ok(html.includes(heading), `weekly HTML missing ${heading}`);
+    assert.ok(markdown.includes(heading), `weekly Markdown missing ${heading}`);
+  }
+  for (const removed of ["AI 协作与采纳", "数据覆盖边界", "证据索引"]) {
+    assert.equal(html.includes(removed), false, `unexpected weekly HTML section: ${removed}`);
+    assert.equal(markdown.includes(removed), false, `unexpected weekly Markdown section: ${removed}`);
+  }
+});
+
+test("无数据时日报与周报仍保留相同固定章节", () => {
+  const empty = buildFactReport({
+    day: asPlainDate("2026-11-06"),
+    dataVersion: "empty",
+    sessions: [],
+    classifications: [],
+    tests: [],
+    submissions: [],
+    adoption: aggregateAdoption([], []),
+    research: []
+  });
+  const weekly = buildWeeklyReport([empty], ["2026-11-06"]);
+  const dailyHtml = renderHtml(empty);
+  const weeklyHtml = renderHtml(weekly);
+  const dailyMarkdown = renderMarkdown(empty);
+  const weeklyMarkdown = renderMarkdown(weekly);
+
+  for (const heading of ["本期结论", "1. 工作进展", "1.1 日度分布", "1.2 按项目归集", "2. 问题与质量", "2.1 解决的问题", "2.2 测试结果", "3. 调研与行动", "3.1 本期调研", "3.2 待优化项", "4. 待办事项"]) {
+    assert.ok(dailyHtml.includes(heading), `daily HTML missing ${heading}`);
+    assert.ok(weeklyHtml.includes(heading), `weekly HTML missing ${heading}`);
+    assert.ok(dailyMarkdown.includes(heading), `daily Markdown missing ${heading}`);
+    assert.ok(weeklyMarkdown.includes(heading), `weekly Markdown missing ${heading}`);
+  }
 });
 
 test("企业策略要求登录并拒绝未授权出口", () => {

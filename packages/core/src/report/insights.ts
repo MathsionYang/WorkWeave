@@ -3,7 +3,34 @@ import type { ClassifiedSession } from "../classify/types.js";
 import type { SubmissionLike } from "../adoption/engine.js";
 import type { ResearchFinding } from "../adoption/research.js";
 import type { TestFact } from "../domain/models.js";
+import type { SourceTool } from "../domain/types.js";
 import { isNoiseText } from "../facts/noise.js";
+
+export interface FactLine {
+  readonly text: string;
+  readonly tag: { readonly source: SourceTool; readonly at: string };
+}
+
+export interface WorkstreamInsight {
+  readonly title: string;
+  readonly tag: { readonly source: SourceTool; readonly at: string };
+  readonly outcomes: readonly FactLine[];
+  readonly problems: readonly FactLine[];
+  readonly optimizations: readonly FactLine[];
+  readonly todos: readonly FactLine[];
+  readonly tests: { readonly passed: number; readonly failed: number; readonly blocked: number; readonly notRun: number };
+}
+
+export interface ProjectMetrics {
+  readonly outcomes: number;
+  readonly workstreams: number;
+  readonly testsPassed: number;
+  readonly testsTotal: number;
+  readonly commits: number;
+  readonly problems: number;
+  readonly optimizations: number;
+  readonly messages: number;
+}
 
 export interface ProjectInsight {
   readonly tasks: readonly string[];
@@ -13,6 +40,9 @@ export interface ProjectInsight {
   readonly risks: readonly string[];
   readonly blockers: readonly string[];
   readonly nextSteps: readonly string[];
+  readonly todos: readonly string[];
+  readonly workstreams: readonly WorkstreamInsight[];
+  readonly metrics: ProjectMetrics;
 }
 
 export interface ReportInsights {
@@ -33,6 +63,8 @@ const TASK = /(请|帮我|需要|实现|开发|新增|修复|排查|检查|优�
 const COMPLETION = /(已完成|已修复|已实现|已生成|已更新|已补充|已通过|已跑通|完成|修复了|实现了|生成了|新增了|通过了)/i;
 const PROBLEM = /(问题|报错|错误|异常|失败|bug|崩溃|根因|不兼容|卡住|无法)/i;
 const OPTIMIZATION = /(待优化|优化|todo|技术债|遗留|后续|改进|风险|阻塞)/i;
+const TODO = /(\bTODO\b|待办(?:事项)?|待完成|尚未完成|未完成|仍需|还需|还要|下一步|接下来|后续(?:需要|要|应|计划|补充|完善|修复|实现)|计划(?:完成|补充|修复|实现|完善|继续|进行)|需要继续|需要补充|需要修复|需要实现|需要完善)/i;
+const MARKED_COMPLETE = /(?:已经|已)(?:完成|修复|实现|更新|补充|通过|解决|处理)/i;
 const RISK = /(风险|隐患|潜在|担心)/i;
 const BLOCKER = /(阻塞|受阻|权限不足|无法继续|无法发布)/i;
 const NOISE_LINE = /^(>|#|\*\*|\d+\.\s|\||执行命令|命令输出|stdout|stderr)/i;
@@ -61,6 +93,11 @@ function addUnique(target: string[], value: string, limit: number): void {
   target.push(value);
 }
 
+function addUniqueLine(target: FactLine[], value: FactLine, limit: number): void {
+  if (target.some((line) => line.text === value.text) || target.length >= limit) return;
+  target.push(value);
+}
+
 function projectOf(session: ParsedSession, classifications: readonly ClassifiedSession[]): string | undefined {
   const classification = classifications.find((item) => item.sessionId === session.sessionId);
   if (classification === undefined) return undefined;
@@ -75,9 +112,11 @@ export function extractReportInsights(input: InsightInput): ReportInsights {
     completions: string[];
     problems: string[];
     optimizations: string[];
+    todos: string[];
     risks: string[];
     blockers: string[];
     nextSteps: string[];
+    workstreams: WorkstreamInsight[];
   }>();
 
   for (const session of input.sessions) {
@@ -88,9 +127,30 @@ export function extractReportInsights(input: InsightInput): ReportInsights {
       completions: [],
       problems: [],
       optimizations: [],
+      todos: [],
       risks: [],
       blockers: [],
-      nextSteps: []
+      nextSteps: [],
+      workstreams: []
+    };
+
+    const firstUser = session.messages.find((message) => message.role === "user" && !isNoiseText(message.text ?? ""));
+    const workstream: {
+      title: string;
+      tag: { source: typeof session.sourceTool; at: string };
+      outcomes: FactLine[];
+      problems: FactLine[];
+      optimizations: FactLine[];
+      todos: FactLine[];
+      tests: { passed: number; failed: number; blocked: number; notRun: number };
+    } = {
+      title: session.title?.trim() || (firstUser === undefined ? "工作记录" : cleanSnippet(firstUser.text ?? "工作记录")),
+      tag: { source: session.sourceTool, at: session.startedAt },
+      outcomes: [],
+      problems: [],
+      optimizations: [],
+      todos: [],
+      tests: { passed: 0, failed: 0, blocked: 0, notRun: 0 }
     };
 
     for (const message of session.messages) {
@@ -101,11 +161,13 @@ export function extractReportInsights(input: InsightInput): ReportInsights {
       for (const sentence of sentences(text)) {
         const cleaned = cleanSnippet(sentence);
         if (cleaned.length === 0) continue;
+        const line: FactLine = { text: cleaned, tag: { source: message.sourceTool, at: message.timestamp } };
         if (message.role === "user" && TASK.test(cleaned)) {
           addUnique(bucket.tasks, cleaned, 5);
         }
         if ((message.role === "assistant" || message.role === "tool") && COMPLETION.test(cleaned)) {
           addUnique(bucket.completions, cleaned, 7);
+          addUniqueLine(workstream.outcomes, line, 5);
         }
         if (
           PROBLEM.test(cleaned) &&
@@ -113,9 +175,15 @@ export function extractReportInsights(input: InsightInput): ReportInsights {
           !OPTIMIZATION.test(cleaned)
         ) {
           addUnique(bucket.problems, cleaned, 4);
+          addUniqueLine(workstream.problems, line, 4);
         }
         if (OPTIMIZATION.test(cleaned)) {
           addUnique(bucket.optimizations, cleaned, 5);
+          addUniqueLine(workstream.optimizations, line, 3);
+        }
+        if (TODO.test(cleaned) && !MARKED_COMPLETE.test(cleaned)) {
+          addUnique(bucket.todos, cleaned, 8);
+          addUniqueLine(workstream.todos, line, 5);
         }
         if (RISK.test(cleaned)) {
           addUnique(bucket.risks, cleaned, 3);
@@ -124,6 +192,13 @@ export function extractReportInsights(input: InsightInput): ReportInsights {
           addUnique(bucket.blockers, cleaned, 3);
         }
       }
+    }
+
+    for (const fact of input.tests.filter((item) => item.sessionId === session.sessionId)) {
+      workstream.tests[fact.status === "passed" ? "passed" : fact.status === "failed" ? "failed" : fact.status === "blocked" ? "blocked" : "notRun"] += 1;
+    }
+    if (workstream.outcomes.length > 0 || workstream.problems.length > 0 || workstream.optimizations.length > 0 || workstream.todos.length > 0 || Object.values(workstream.tests).some((count) => count > 0)) {
+      bucket.workstreams.push(workstream);
     }
 
     byProject.set(projectId, bucket);
@@ -190,6 +265,8 @@ export function extractReportInsights(input: InsightInput): ReportInsights {
     for (const optimization of bucket.optimizations) {
       projectNextSteps.push(`[中] 推进优化：${optimization}`);
     }
+    const projectSessions = input.sessions.filter((session) => projectOf(session, input.classifications) === projectId);
+    const tests = input.tests.filter((test) => projectBySession.get(test.sessionId) === projectId);
     projects.set(projectId, {
       tasks: [...bucket.tasks],
       completions: [...bucket.completions],
@@ -197,7 +274,22 @@ export function extractReportInsights(input: InsightInput): ReportInsights {
       optimizations: [...bucket.optimizations],
       risks: [...bucket.risks],
       blockers: [...bucket.blockers],
-      nextSteps: projectNextSteps.slice(0, 5)
+      nextSteps: projectNextSteps.slice(0, 5),
+      todos: [...new Set([
+        ...projectNextSteps.filter((step) => step.startsWith("[高]")),
+        ...bucket.todos
+      ])].slice(0, 10),
+      workstreams: [...bucket.workstreams].sort((left, right) => left.tag.at.localeCompare(right.tag.at)),
+      metrics: {
+        outcomes: bucket.completions.length,
+        workstreams: bucket.workstreams.length,
+        testsPassed: tests.filter((test) => test.status === "passed").length,
+        testsTotal: tests.length,
+        commits: 0,
+        problems: bucket.problems.length,
+        optimizations: bucket.optimizations.length,
+        messages: projectSessions.reduce((sum, session) => sum + session.messages.length, 0)
+      }
     });
   }
 

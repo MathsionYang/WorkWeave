@@ -29,7 +29,7 @@ async function walk(dir) {
   const entries = await readdir(dir, { withFileTypes: true });
   const files = [];
   for (const entry of entries) {
-    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "dist-tests" || entry.name === ".git") {
+    if (entry.name === "node_modules" || entry.name === "dist" || entry.name === "dist-tests" || entry.name === ".git" || dir === ROOT && entry.name === "references") {
       continue;
     }
     const full = join(dir, entry.name);
