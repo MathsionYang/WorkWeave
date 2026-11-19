@@ -5,4 +5,5 @@ dist-tests/
 .codeartsdoer/
 .arts/
 coverage/
-.DS_Store/references/
+/references/
+.workbuddy/
